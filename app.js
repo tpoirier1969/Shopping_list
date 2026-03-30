@@ -211,6 +211,31 @@
     setStatus(error?.message || 'Something went sideways.', true);
   }
 
+  function renderStartupError(message) {
+    const safe = escapeHtml(message || 'Startup failed.');
+    const html = `
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title-row">
+            <h2 class="panel-title">Setup error</h2>
+          </div>
+        </div>
+        <div class="empty-state" style="text-align:left;line-height:1.5;">
+          <div><strong>The app did not finish connecting to Supabase.</strong></div>
+          <div style="margin-top:8px;">${safe}</div>
+          <div style="margin-top:12px;">Check <code>config.js</code>, make sure Anonymous sign-ins are enabled in Supabase Auth, then hard refresh the page.</div>
+        </div>
+      </div>
+    `;
+    Object.values(els.views).forEach((view) => { view.innerHTML = html; });
+  }
+
+  function ensureStoreReady() {
+    if (!store || !state.ready) {
+      throw new Error('The app is not connected to Supabase yet. Refresh the page after fixing setup.');
+    }
+  }
+
   function escapeHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;')
@@ -297,6 +322,7 @@
   }
 
   async function saveRule(itemKey, category, storeName) {
+    ensureStoreReady();
     const payload = {
       household_id: SHARED_SCOPE_ID,
       item_key: itemKey,
@@ -309,6 +335,7 @@
   }
 
   async function addItemFromModal() {
+    ensureStoreReady();
     const itemName = els.itemNameInput.value.trim();
     if (!itemName) return;
 
@@ -336,6 +363,7 @@
   }
 
   async function loadAll() {
+    ensureStoreReady();
     const [items, rules, note] = await Promise.all([store.getItems(), store.getRules(), store.getNote()]);
     state.items = items;
     state.rules = rules;
@@ -527,6 +555,7 @@
   }
 
   async function persistItem(item) {
+    ensureStoreReady();
     const saved = await store.saveItem(item);
     const idx = state.items.findIndex((x) => x.id === saved.id);
     if (idx >= 0) state.items[idx] = saved;
@@ -620,6 +649,7 @@
 
   const saveNoteDebounced = debounce(async (value) => {
     try {
+      ensureStoreReady();
       await store.saveNote(value);
       setStatus('Notes saved.');
     } catch (error) {
@@ -671,24 +701,21 @@
   }
 
   async function initStore() {
-    if (APP_CONFIG.mode === 'supabase') {
-      try {
-        store = new SupabaseStore();
-        await store.init();
-      } catch (error) {
-        console.error('Supabase startup failed.', error);
-        setStatus(`Supabase setup issue: ${error.message}. Check config.js and Supabase settings.`, true);
-        throw error;
-      }
-    } else {
-      const error = new Error("This build requires Supabase. Set APP_CONFIG.mode to 'supabase'.");
-      setStatus(error.message, true);
+    try {
+      store = new SupabaseStore();
+      await store.init();
+      state.isSupabase = true;
+      state.user = await store.currentUser();
+      state.ready = true;
+      await loadAll();
+    } catch (error) {
+      state.ready = false;
+      console.error('Supabase startup failed.', error);
+      const message = `Supabase setup issue: ${error.message}`;
+      setStatus(message, true);
+      renderStartupError(message);
       throw error;
     }
-    state.isSupabase = store instanceof SupabaseStore;
-    state.user = await store.currentUser();
-    state.ready = true;
-    await loadAll();
   }
 
   function bindStaticEvents() {
@@ -734,5 +761,6 @@
   }
 
   bindStaticEvents();
-  initStore().catch(handleError);
+  renderStartupError('Connecting to Supabase…');
+  initStore().catch(() => {});
 })();

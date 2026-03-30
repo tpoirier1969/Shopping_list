@@ -1,4 +1,4 @@
--- Shared Shopping List schema v1.0.4
+-- Shared Shopping List schema v1.0.5
 -- Shared mode: automatic anonymous sign-in, no email/password form.
 -- Important: in Supabase, enable Anonymous sign-ins under Authentication > Providers.
 
