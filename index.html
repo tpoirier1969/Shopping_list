@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shared Shopping List</title>
+  <meta name="theme-color" content="#113a5d" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <img src="icon.svg" alt="App icon" class="brand-icon" />
+        <div>
+          <h1>Shared Shopping List</h1>
+          <div class="subline">
+            <span id="modeBadge" class="mode-badge">Checking setup…</span>
+            <span class="version-flag">v1.0.0</span>
+          </div>
+        </div>
+      </div>
+      <div class="auth-compact" id="authCompact">
+        <label>
+          <span>Email</span>
+          <input id="authEmail" type="email" autocomplete="username" />
+        </label>
+        <label>
+          <span>Password</span>
+          <input id="authPassword" type="password" autocomplete="current-password" />
+        </label>
+        <button id="signInBtn" class="mini-btn">Sign in</button>
+        <button id="signUpBtn" class="mini-btn secondary-btn">Sign up</button>
+        <button id="signOutBtn" class="mini-btn ghost-btn hidden">Sign out</button>
+      </div>
+    </header>
+
+    <div id="statusBar" class="status-bar"></div>
+
+    <nav class="tabbar" id="tabBar">
+      <button class="tab active" data-tab="ours">Ours</button>
+      <button class="tab" data-tab="menards">Menards</button>
+      <button class="tab" data-tab="poirier">Poirier</button>
+      <button class="tab" data-tab="schaffer">Schaffer</button>
+      <button class="tab" data-tab="notes">Notes</button>
+      <button class="tab" data-tab="removed">Recently Removed</button>
+    </nav>
+
+    <main class="main-grid">
+      <section id="view-ours" class="view active"></section>
+      <section id="view-menards" class="view"></section>
+      <section id="view-poirier" class="view"></section>
+      <section id="view-schaffer" class="view"></section>
+      <section id="view-notes" class="view notes-view"></section>
+      <section id="view-removed" class="view"></section>
+    </main>
+  </div>
+
+  <button id="floatingAddBtn" class="floating-add" aria-label="Add item">＋</button>
+
+  <dialog id="itemModal" class="modal-card">
+    <form method="dialog" id="itemForm">
+      <div class="modal-head">
+        <h2 id="modalTitle">Add Item</h2>
+        <button type="button" id="closeModalBtn" class="icon-btn">✕</button>
+      </div>
+
+      <div class="modal-grid compact-grid">
+        <label class="full-row">
+          <span>Item</span>
+          <input id="itemNameInput" type="text" maxlength="120" autocomplete="off" required />
+        </label>
+
+        <div id="parentSelector" class="parent-selector full-row">
+          <span>Parent list</span>
+          <label><input type="checkbox" id="parentPoirier" /> Poirier</label>
+          <label><input type="checkbox" id="parentSchaffer" /> Schaffer</label>
+        </div>
+
+        <label id="categoryPickerWrap" class="full-row hidden">
+          <span>Category</span>
+          <select id="categoryPicker"></select>
+          <small class="helper">Unknown item. Pick a category and it will be remembered next time.</small>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="submit" class="primary-btn">Add</button>
+        <button type="button" id="cancelModalBtn" class="secondary-btn">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="listControlsTemplate">
+    <div class="panel-head">
+      <div class="panel-title-row">
+        <h2 class="panel-title"></h2>
+        <div class="panel-actions"></div>
+      </div>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
