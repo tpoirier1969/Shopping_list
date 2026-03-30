@@ -1,5 +1,4 @@
 window.APP_CONFIG = {
-  mode: 'supabase',
   supabaseUrl: 'https://YOUR-PROJECT.supabase.co',
-  supabaseAnonKey: 'YOUR-ANON-KEY',
+  supabaseAnonKey: 'sb_publishable_gWu_EQ1J3s0iNjeDeINJwQ_xKy8QgAJ',
 };
