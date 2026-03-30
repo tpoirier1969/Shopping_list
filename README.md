@@ -1,71 +1,36 @@
-# Shared Shopping List v1.0.0
+# Shared Shopping List v1.0.4
 
-Compact shared shopping list app for GitHub Pages + Supabase.
+This build is for **GitHub Pages + Supabase**.
 
-## What this build does
+It uses:
+- automatic **anonymous** Supabase sign-in
+- one built-in shared household scope hardwired into the app
+- no email/password form in the UI
 
-- Compact, list-first layout
-- Tabs: Ours, Menards, Poirier, Schaffer, Notes, Recently Removed
-- Auto-categorizes items into:
-  - Produce
-  - Deli
-  - Vegan
-  - Meat
-  - Frozen
-  - Gluten Free
-  - Condiments
-  - Canned
-  - Dry Goods
-  - Snacks
-  - Bakery
-  - Beverages
-  - Dairy / Eggs
-  - Cleaning
-  - Paper Products
-  - Pet Supplies
-  - Medicine
-  - Other
-- Empty category headings stay hidden
-- Add-item floating modal
-- Unknown category prompts for manual choice and learns it for future use
-- Main shopping checkboxes fade items instead of removing them immediately
-- `Shopped` clears checked items from Ours / Menards
-- Parent-tagged items leave the Ours tab after `Shopped`, but stay in Poirier / Schaffer until `Delivered`
-- Recently Removed tab with Restore button
-- Shared Notes tab
-- Visible version flag
-- Included icon
+## What changed in v1.0.4
 
-## Important architecture note
+- removed the email/password UI
+- app auto-connects through Supabase anonymous auth
+- removed householdId from config.js; the shared scope is hardwired for Tod + Donna
+- renamed **Ours** to **Shopping**
+- one **Parents** tab with **Poirier** and **Shafer** sections
+- explicit **Done** buttons for Shopping and Menards
+- removed leftover local/demo wording from the header
+- improved canned-item guessing for items like crushed pineapple
 
-This starter uses **Supabase Auth** for the safer static-site setup.
+## 1) Supabase setup
 
-Simplest way to make it shared:
-- create one shared account in Supabase Auth
-- sign in with the same email/password on both devices
+In Supabase:
 
-That is not elegant, but it is clean, secure enough for a grocery app, and avoids exposing open write access from GitHub Pages.
+1. Open your project.
+2. Go to **Authentication → Providers → Anonymous**.
+3. Turn **Anonymous sign-ins** ON.
+4. Open the SQL editor.
+5. Run `supabase_schema.sql`.
 
-## Files
+## 2) Edit config.js
 
-- `index.html`
-- `styles.css`
-- `app.js`
-- `config.js`
-- `icon.svg`
-- `supabase_schema.sql`
-
-## Supabase setup
-
-1. Create a Supabase project.
-2. In SQL Editor, run `supabase_schema.sql`.
-3. In Authentication, enable Email/Password sign-in.
-4. In `config.js`, paste:
-   - your project URL
-   - your anon key
-5. Change `mode` from `local` to `supabase`.
-
-Example:
+Fill in the two Supabase values:
 
 ```js
 window.APP_CONFIG = {
@@ -75,25 +40,26 @@ window.APP_CONFIG = {
 };
 ```
 
-## GitHub Pages deployment
+The app now uses one built-in shared scope for you and Donna. There is no householdId to set.
 
-1. Put these files in your repo root.
-2. Commit and push.
-3. In GitHub repo settings, enable Pages from the branch/root you want.
-4. Once published, open the site and sign in.
+## 3) Publish to GitHub Pages
 
-## Known limitations in this starter
+Upload these files to your repo root or Pages folder:
 
-- Parent tag is single-choice: Poirier or Schaffer, not both
-- Menards is its own store tab, but not yet split into subcategories beyond the same category set
-- No drag/drop category reordering yet
-- No additional future store tabs yet
-- No invite system or separate household accounts yet
+- index.html
+- styles.css
+- app.js
+- config.js
+- icon.svg
 
-## Good next build targets
+## 4) Open the site
 
-1. On-the-fly category reordering
-2. Additional store tabs with custom category order per store
-3. Better icon/theme options
-4. Invite-based sharing with separate logins
-5. Per-item quantity and note fields
+When the app loads correctly, the badge under the title should say:
+
+- **Supabase shared mode**
+
+Not local. Not sign in.
+
+## Notes
+
+This build is designed for convenience sharing, not fortress-grade secrecy. It keeps the app simple and removes the login friction, which fits a household shopping list much better.

@@ -18,42 +18,27 @@
         <div>
           <h1>Shared Shopping List</h1>
           <div class="subline">
-            <span id="modeBadge" class="mode-badge">Checking setup…</span>
-            <span class="version-flag">v1.0.0</span>
+            <span id="modeBadge" class="mode-badge">Supabase shared mode</span>
+            <span class="version-flag">v1.0.4</span>
           </div>
         </div>
-      </div>
-      <div class="auth-compact" id="authCompact">
-        <label>
-          <span>Email</span>
-          <input id="authEmail" type="email" autocomplete="username" />
-        </label>
-        <label>
-          <span>Password</span>
-          <input id="authPassword" type="password" autocomplete="current-password" />
-        </label>
-        <button id="signInBtn" class="mini-btn">Sign in</button>
-        <button id="signUpBtn" class="mini-btn secondary-btn">Sign up</button>
-        <button id="signOutBtn" class="mini-btn ghost-btn hidden">Sign out</button>
       </div>
     </header>
 
     <div id="statusBar" class="status-bar"></div>
 
     <nav class="tabbar" id="tabBar">
-      <button class="tab active" data-tab="ours">Ours</button>
+      <button class="tab active" data-tab="shopping">Shopping</button>
       <button class="tab" data-tab="menards">Menards</button>
-      <button class="tab" data-tab="poirier">Poirier</button>
-      <button class="tab" data-tab="schaffer">Schaffer</button>
+      <button class="tab" data-tab="parents">Parents</button>
       <button class="tab" data-tab="notes">Notes</button>
       <button class="tab" data-tab="removed">Recently Removed</button>
     </nav>
 
     <main class="main-grid">
-      <section id="view-ours" class="view active"></section>
+      <section id="view-shopping" class="view active"></section>
       <section id="view-menards" class="view"></section>
-      <section id="view-poirier" class="view"></section>
-      <section id="view-schaffer" class="view"></section>
+      <section id="view-parents" class="view"></section>
       <section id="view-notes" class="view notes-view"></section>
       <section id="view-removed" class="view"></section>
     </main>
@@ -77,7 +62,7 @@
         <div id="parentSelector" class="parent-selector full-row">
           <span>Parent list</span>
           <label><input type="checkbox" id="parentPoirier" /> Poirier</label>
-          <label><input type="checkbox" id="parentSchaffer" /> Schaffer</label>
+          <label><input type="checkbox" id="parentSchaffer" /> Shafer</label>
         </div>
 
         <label id="categoryPickerWrap" class="full-row hidden">

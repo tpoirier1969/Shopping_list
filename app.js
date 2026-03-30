@@ -22,7 +22,7 @@
   ];
 
   const STORE_LABELS = {
-    ours: 'Ours',
+    shopping: 'Shopping',
     menards: 'Menards',
   };
 
@@ -30,6 +30,8 @@
     poirier: 'P',
     schaffer: 'S',
   };
+
+  const SHARED_SCOPE_ID = 'tod-donna-shared';
 
   const BUILTIN_RULES = [
     { category: 'Produce', keywords: ['apple', 'apples', 'banana', 'bananas', 'orange', 'oranges', 'lettuce', 'romaine', 'spinach', 'celery', 'carrot', 'carrots', 'onion', 'onions', 'potato', 'potatoes', 'garlic', 'grape', 'grapes', 'broccoli', 'cauliflower', 'pepper', 'peppers', 'tomato', 'tomatoes', 'cucumber', 'cucumbers', 'avocado', 'avocados', 'lime', 'limes', 'lemon', 'lemons', 'salad', 'mushroom', 'mushrooms', 'berries', 'strawberry', 'blueberry'] },
@@ -39,7 +41,7 @@
     { category: 'Frozen', keywords: ['frozen', 'ice cream', 'pizza', 'peas', 'french fries', 'hash browns', 'waffles', 'tv dinner'] },
     { category: 'Gluten Free', keywords: ['gluten free', 'gf bread', 'gf pasta', 'gf crackers', 'gf flour'] },
     { category: 'Condiments', keywords: ['ketchup', 'mustard', 'mayo', 'mayonnaise', 'relish', 'salsa', 'soy sauce', 'vinegar', 'olive oil', 'hot sauce', 'salad dressing', 'bbq sauce', 'jam', 'jelly', 'peanut butter'] },
-    { category: 'Canned', keywords: ['canned', 'soup', 'broth', 'beans', 'corn', 'peas', 'tuna', 'tomato sauce', 'tomatoes', 'spam'] },
+    { category: 'Canned', keywords: ['canned', 'can of', 'soup', 'broth', 'beans', 'green beans', 'corn', 'peas', 'tuna', 'tomato sauce', 'diced tomatoes', 'crushed tomatoes', 'whole tomatoes', 'spam', 'crushed pineapple', 'pineapple chunks', 'canned pineapple', 'canned peaches', 'sliced peaches', 'canned pears', 'mandarin oranges', 'fruit cup', 'fruit cocktail', 'olives'] },
     { category: 'Dry Goods', keywords: ['flour', 'sugar', 'salt', 'pepper', 'spice', 'seasoning', 'pasta', 'rice', 'oats', 'oatmeal', 'cereal', 'lentils', 'breadcrumbs', 'cracker crumbs', 'yeast', 'baking powder', 'baking soda', 'macaroni'] },
     { category: 'Snacks', keywords: ['chips', 'pretzels', 'popcorn', 'cookies', 'cracker', 'crackers', 'nuts', 'trail mix', 'granola bar', 'bars'] },
     { category: 'Bakery', keywords: ['bread', 'bagel', 'bagels', 'bun', 'buns', 'rolls', 'donut', 'donuts', 'tortilla', 'tortillas', 'muffin', 'muffins'] },
@@ -52,8 +54,8 @@
   ];
 
   const state = {
-    currentTab: 'ours',
-    modalStore: 'ours',
+    currentTab: 'shopping',
+    modalStore: 'shopping',
     items: [],
     rules: [],
     note: '',
@@ -61,6 +63,15 @@
     ready: false,
     user: null,
   };
+
+
+  function isShoppingStore(item) {
+    return item.store === 'shopping' || item.store === 'ours';
+  }
+
+  function isShaferTarget(item) {
+    return item.parent_target === 'schaffer' || item.parent_target === 'shafer';
+  }
 
   const els = {
     modeBadge: document.getElementById('modeBadge'),
@@ -78,17 +89,10 @@
     parentSchaffer: document.getElementById('parentSchaffer'),
     categoryPickerWrap: document.getElementById('categoryPickerWrap'),
     categoryPicker: document.getElementById('categoryPicker'),
-    authEmail: document.getElementById('authEmail'),
-    authPassword: document.getElementById('authPassword'),
-    signInBtn: document.getElementById('signInBtn'),
-    signUpBtn: document.getElementById('signUpBtn'),
-    signOutBtn: document.getElementById('signOutBtn'),
-    authCompact: document.getElementById('authCompact'),
     views: {
-      ours: document.getElementById('view-ours'),
+      shopping: document.getElementById('view-shopping'),
       menards: document.getElementById('view-menards'),
-      poirier: document.getElementById('view-poirier'),
-      schaffer: document.getElementById('view-schaffer'),
+      parents: document.getElementById('view-parents'),
       notes: document.getElementById('view-notes'),
       removed: document.getElementById('view-removed'),
     },
@@ -97,104 +101,40 @@
   const categoryOptionsHtml = CATEGORY_ORDER.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join('');
   els.categoryPicker.innerHTML = categoryOptionsHtml;
 
-  class LocalStore {
-    async init() {
-      this.itemsKey = 'shopping-list-items-v1';
-      this.rulesKey = 'shopping-list-rules-v1';
-      this.noteKey = 'shopping-list-note-v1';
-      state.isSupabase = false;
-      setModeBadge('Local demo mode');
-      return true;
-    }
-    async getItems() { return readJSON(this.itemsKey, []); }
-    async saveItem(item) {
-      const items = readJSON(this.itemsKey, []);
-      const idx = items.findIndex((x) => x.id === item.id);
-      item.updated_at = new Date().toISOString();
-      if (idx >= 0) items[idx] = item;
-      else items.push(item);
-      writeJSON(this.itemsKey, items);
-      return item;
-    }
-    async getRules() { return readJSON(this.rulesKey, []); }
-    async saveRule(rule) {
-      const rules = readJSON(this.rulesKey, []);
-      const idx = rules.findIndex((r) => r.item_key === rule.item_key && r.store === rule.store);
-      if (idx >= 0) rules[idx] = rule;
-      else rules.push(rule);
-      writeJSON(this.rulesKey, rules);
-      return rule;
-    }
-    async getNote() { return localStorage.getItem(this.noteKey) || ''; }
-    async saveNote(body) { localStorage.setItem(this.noteKey, body); return body; }
-    async signIn() { return { user: { email: 'local@demo' } }; }
-    async signUp() { return { user: { email: 'local@demo' } }; }
-    async signOut() { return true; }
-    async currentUser() { return { email: 'local@demo' }; }
-  }
-
   class SupabaseStore {
     async init() {
       if (!APP_CONFIG.supabaseUrl || !APP_CONFIG.supabaseAnonKey) {
         throw new Error('Missing Supabase URL or anon key in config.js');
       }
       state.isSupabase = true;
+      this.householdId = SHARED_SCOPE_ID;
       this.client = window.supabase.createClient(APP_CONFIG.supabaseUrl, APP_CONFIG.supabaseAnonKey, {
         auth: { persistSession: true, autoRefreshToken: true },
       });
+
+      const { data: sessionData } = await this.client.auth.getSession();
+      if (!sessionData?.session) {
+        const { error } = await this.client.auth.signInAnonymously();
+        if (error) throw new Error(`Anonymous auth failed. Enable Anonymous sign-ins in Supabase Auth. ${error.message}`);
+      }
+
       const { data } = await this.client.auth.getSession();
       state.user = data?.session?.user || null;
-      setModeBadge(state.user ? `Supabase: ${state.user.email}` : 'Supabase ready — sign in');
-      this.client.auth.onAuthStateChange((_event, session) => {
-        state.user = session?.user || null;
-        setAuthState();
-        if (state.user) {
-          setModeBadge(`Supabase: ${state.user.email}`);
-          loadAll().catch(handleError);
-        } else {
-          setModeBadge('Supabase ready — sign in');
-          state.items = [];
-          state.rules = [];
-          state.note = '';
-          renderAll();
-        }
-      });
+      setModeBadge('Supabase shared mode');
       return true;
-    }
-    ensureUser() {
-      if (!state.user) throw new Error('Sign in first.');
     }
     async currentUser() { return state.user; }
-    async signIn(email, password) {
-      const { data, error } = await this.client.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      state.user = data.user;
-      return data;
-    }
-    async signUp(email, password) {
-      const { data, error } = await this.client.auth.signUp({ email, password });
-      if (error) throw error;
-      state.user = data.user || null;
-      return data;
-    }
-    async signOut() {
-      const { error } = await this.client.auth.signOut();
-      if (error) throw error;
-      state.user = null;
-      return true;
-    }
     async getItems() {
-      this.ensureUser();
       const { data, error } = await this.client
         .from('shopping_items')
         .select('*')
+        .eq('household_id', this.householdId)
         .order('created_at', { ascending: true });
       if (error) throw error;
       return data || [];
     }
     async saveItem(item) {
-      this.ensureUser();
-      const payload = { ...item };
+      const payload = { ...item, household_id: this.householdId };
       delete payload.created_at;
       const { data, error } = await this.client
         .from('shopping_items')
@@ -205,34 +145,35 @@
       return data;
     }
     async getRules() {
-      this.ensureUser();
-      const { data, error } = await this.client.from('shopping_rules').select('*');
+      const { data, error } = await this.client
+        .from('shopping_rules')
+        .select('*')
+        .eq('household_id', this.householdId);
       if (error) throw error;
       return data || [];
     }
     async saveRule(rule) {
-      this.ensureUser();
+      const payload = { ...rule, household_id: this.householdId };
       const { data, error } = await this.client
         .from('shopping_rules')
-        .upsert(rule, { onConflict: 'user_id,item_key,store' })
+        .upsert(payload, { onConflict: 'household_id,item_key,store' })
         .select()
         .single();
       if (error) throw error;
       return data;
     }
     async getNote() {
-      this.ensureUser();
       const { data, error } = await this.client
         .from('shopping_notes')
         .select('*')
+        .eq('household_id', this.householdId)
         .limit(1);
       if (error) throw error;
       return data?.[0]?.body || '';
     }
     async saveNote(body) {
-      this.ensureUser();
-      const payload = { body, updated_at: new Date().toISOString() };
-      const { error } = await this.client.from('shopping_notes').upsert(payload, { onConflict: 'user_id' });
+      const payload = { household_id: this.householdId, body, updated_at: new Date().toISOString() };
+      const { error } = await this.client.from('shopping_notes').upsert(payload, { onConflict: 'household_id' });
       if (error) throw error;
       return body;
     }
@@ -286,7 +227,7 @@
   function baseItem(itemName, category, storeName, parentTarget = null) {
     return {
       id: makeId(),
-      user_id: state.user?.id || 'local-user',
+      household_id: SHARED_SCOPE_ID,
       item_name: itemName.trim(),
       normalized_name: normalizeName(itemName),
       category,
@@ -312,12 +253,21 @@
     const learned = getLearnedRule(normalized, storeName);
     if (learned?.category) return learned.category;
 
+    let bestCategory = null;
+    let bestScore = 0;
+
     for (const rule of BUILTIN_RULES) {
-      if (rule.keywords.some((keyword) => normalized.includes(keyword))) {
-        return rule.category;
+      for (const keyword of rule.keywords) {
+        if (!normalized.includes(keyword)) continue;
+        const score = keyword.length;
+        if (score > bestScore) {
+          bestScore = score;
+          bestCategory = rule.category;
+        }
       }
     }
-    return null;
+
+    return bestCategory;
   }
 
   function currentParentSelection() {
@@ -335,8 +285,8 @@
     state.modalStore = storeName;
     els.itemForm.reset();
     els.categoryPickerWrap.classList.add('hidden');
-    const isOurs = storeName === 'ours';
-    els.parentSelector.classList.toggle('hidden', !isOurs);
+    const isShopping = storeName === 'shopping';
+    els.parentSelector.classList.toggle('hidden', !isShopping);
     els.modalTitle.textContent = `Add ${STORE_LABELS[storeName]} Item`;
     els.itemModal.showModal();
     setTimeout(() => els.itemNameInput.focus(), 50);
@@ -348,7 +298,7 @@
 
   async function saveRule(itemKey, category, storeName) {
     const payload = {
-      user_id: state.user?.id || 'local-user',
+      household_id: SHARED_SCOPE_ID,
       item_key: itemKey,
       category,
       store: storeName,
@@ -376,7 +326,7 @@
       await saveRule(normalized, category, state.modalStore);
     }
 
-    const parentTarget = state.modalStore === 'ours' ? currentParentSelection() : null;
+    const parentTarget = state.modalStore === 'shopping' ? currentParentSelection() : null;
     const item = baseItem(itemName, category, state.modalStore, parentTarget);
     const saved = await store.saveItem(item);
     state.items.push(saved);
@@ -386,13 +336,6 @@
   }
 
   async function loadAll() {
-    if (state.isSupabase && !state.user) {
-      state.items = [];
-      state.rules = [];
-      state.note = '';
-      renderAll();
-      return;
-    }
     const [items, rules, note] = await Promise.all([store.getItems(), store.getRules(), store.getNote()]);
     state.items = items;
     state.rules = rules;
@@ -402,14 +345,12 @@
 
   function getItemsForTab(tabName) {
     switch (tabName) {
-      case 'ours':
-        return state.items.filter((item) => item.store === 'ours' && item.on_shopping_list && !item.removed);
+      case 'shopping':
+        return state.items.filter((item) => isShoppingStore(item) && item.on_shopping_list && !item.removed);
       case 'menards':
         return state.items.filter((item) => item.store === 'menards' && item.on_shopping_list && !item.removed);
-      case 'poirier':
-        return state.items.filter((item) => item.store === 'ours' && item.parent_target === 'poirier' && !item.removed && !item.delivered);
-      case 'schaffer':
-        return state.items.filter((item) => item.store === 'ours' && item.parent_target === 'schaffer' && !item.removed && !item.delivered);
+      case 'parents':
+        return state.items.filter((item) => isShoppingStore(item) && item.parent_target && !item.removed && !item.delivered);
       case 'removed':
         return state.items.filter((item) => item.removed).sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
       default:
@@ -517,14 +458,14 @@
     `;
   }
 
-  function renderOurs() {
-    const items = getItemsForTab('ours');
+  function renderShopping() {
+    const items = getItemsForTab('shopping');
     const checkedCount = countChecked(items, 'main');
     const actions = `
-      <button class="control-btn" data-action="open-add" data-store="ours">Add item</button>
-      <button class="control-btn primary" data-action="shopped-ours" ${checkedCount ? '' : 'disabled'}>Shopped (${checkedCount})</button>
+      <button class="control-btn" data-action="open-add" data-store="shopping">Add item</button>
+      <button class="control-btn primary" data-action="done-shopping" ${checkedCount ? '' : 'disabled'}>Done (${checkedCount})</button>
     `;
-    els.views.ours.innerHTML = panelShell('Ours', actions, renderCategorizedItems(items));
+    els.views.shopping.innerHTML = panelShell('Shopping', actions, renderCategorizedItems(items));
   }
 
   function renderMenards() {
@@ -532,19 +473,35 @@
     const checkedCount = countChecked(items, 'main');
     const actions = `
       <button class="control-btn" data-action="open-add" data-store="menards">Add item</button>
-      <button class="control-btn primary" data-action="shopped-menards" ${checkedCount ? '' : 'disabled'}>Shopped (${checkedCount})</button>
+      <button class="control-btn primary" data-action="done-menards" ${checkedCount ? '' : 'disabled'}>Done (${checkedCount})</button>
     `;
     els.views.menards.innerHTML = panelShell('Menards', actions, renderCategorizedItems(items));
   }
 
-  function renderParentTab(parentKey) {
-    const items = getItemsForTab(parentKey);
-    const checkedCount = countChecked(items, 'parent');
-    const title = parentKey === 'poirier' ? 'Poirier' : 'Schaffer';
-    const actions = `
-      <button class="control-btn primary" data-action="delivered-${parentKey}" ${checkedCount ? '' : 'disabled'}>Delivered (${checkedCount})</button>
+  function renderParents() {
+    const poirierItems = state.items.filter((item) => isShoppingStore(item) && item.parent_target === 'poirier' && !item.removed && !item.delivered);
+    const schafferItems = state.items.filter((item) => isShoppingStore(item) && isShaferTarget(item) && !item.removed && !item.delivered);
+    const poirierChecked = countChecked(poirierItems, 'parent');
+    const schafferChecked = countChecked(schafferItems, 'parent');
+
+    const renderParentSection = (title, key, items, checkedCount) => `
+      <section class="parent-section ${items.length ? '' : 'empty-parent-section'}">
+        <div class="parent-section-head">
+          <div class="parent-section-title">${title} <span class="badge">${items.length}</span></div>
+          <div class="panel-actions">
+            <button class="control-btn primary" data-action="delivered-${key}" ${checkedCount ? '' : 'disabled'}>Delivered (${checkedCount})</button>
+          </div>
+        </div>
+        ${items.length ? renderCategorizedItems(items, { parentMode: true }) : '<div class="empty-state compact-empty">Nothing pending.</div>'}
+      </section>
     `;
-    els.views[parentKey].innerHTML = panelShell(title, actions, renderCategorizedItems(items, { parentMode: true }));
+
+    els.views.parents.innerHTML = panelShell('Parents', '', `
+      <div class="parent-sections-wrap">
+        ${renderParentSection('Poirier', 'poirier', poirierItems, poirierChecked)}
+        ${renderParentSection('Shafer', 'schaffer', schafferItems, schafferChecked)}
+      </div>
+    `);
   }
 
   function renderNotes() {
@@ -560,10 +517,9 @@
   }
 
   function renderAll() {
-    renderOurs();
+    renderShopping();
     renderMenards();
-    renderParentTab('poirier');
-    renderParentTab('schaffer');
+    renderParents();
     renderNotes();
     els.views.removed.innerHTML = renderRemoved(getItemsForTab('removed'));
     bindDynamicEvents();
@@ -617,10 +573,10 @@
   }
 
   async function shoppedStore(storeName) {
-    const items = state.items.filter((item) => item.store === storeName && item.on_shopping_list && !item.removed && item.purchased_main);
+    const items = state.items.filter((item) => ((storeName === 'shopping' ? isShoppingStore(item) : item.store === storeName)) && item.on_shopping_list && !item.removed && item.purchased_main);
     for (const item of items) {
       item.purchased_main = false;
-      if (item.parent_target && storeName === 'ours') {
+      if (item.parent_target && storeName === 'shopping') {
         item.on_shopping_list = false;
       } else {
         item.removed = true;
@@ -633,7 +589,7 @@
   }
 
   async function deliveredParent(parentKey) {
-    const items = state.items.filter((item) => item.parent_target === parentKey && !item.removed && !item.delivered && item.parent_checked);
+    const items = state.items.filter((item) => ((parentKey === 'schaffer' ? isShaferTarget(item) : item.parent_target === parentKey)) && !item.removed && !item.delivered && item.parent_checked);
     for (const item of items) {
       item.parent_checked = false;
       item.delivered = true;
@@ -642,25 +598,16 @@
       item.on_shopping_list = false;
       await persistItem(item);
     }
-    setStatus(`Delivered items cleared for ${parentKey === 'poirier' ? 'Poirier' : 'Schaffer'}.`);
+    setStatus(`Delivered items cleared for ${parentKey === 'poirier' ? 'Poirier' : 'Shafer'}.`);
   }
 
   function switchTab(tabName) {
     state.currentTab = tabName;
     document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === tabName));
     Object.entries(els.views).forEach(([key, view]) => view.classList.toggle('active', key === tabName));
-    els.floatingAddBtn.classList.toggle('hidden', tabName === 'notes' || tabName === 'removed' || tabName === 'poirier' || tabName === 'schaffer');
-    els.floatingAddBtn.dataset.store = tabName === 'menards' ? 'menards' : 'ours';
+    els.floatingAddBtn.classList.toggle('hidden', tabName === 'notes' || tabName === 'removed' || tabName === 'parents');
+    els.floatingAddBtn.dataset.store = tabName === 'menards' ? 'menards' : 'shopping';
     els.floatingAddBtn.title = tabName === 'menards' ? 'Add Menards item' : 'Add shopping item';
-  }
-
-  function setAuthState() {
-    const signedIn = !!state.user || !state.isSupabase;
-    els.signOutBtn.classList.toggle('hidden', !signedIn || !state.isSupabase);
-    els.signInBtn.classList.toggle('hidden', !state.isSupabase);
-    els.signUpBtn.classList.toggle('hidden', !state.isSupabase);
-    els.authEmail.disabled = !state.isSupabase;
-    els.authPassword.disabled = !state.isSupabase;
   }
 
   function debounce(fn, wait = 400) {
@@ -690,8 +637,8 @@
           if (action === 'open-add') openModal(storeName);
           if (action === 'remove') await removeItem(id);
           if (action === 'restore') await restoreItem(id);
-          if (action === 'shopped-ours') await shoppedStore('ours');
-          if (action === 'shopped-menards') await shoppedStore('menards');
+          if (action === 'done-shopping') await shoppedStore('shopping');
+          if (action === 'done-menards') await shoppedStore('menards');
           if (action === 'delivered-poirier') await deliveredParent('poirier');
           if (action === 'delivered-schaffer') await deliveredParent('schaffer');
         } catch (error) {
@@ -729,18 +676,17 @@
         store = new SupabaseStore();
         await store.init();
       } catch (error) {
-        console.warn('Falling back to local mode.', error);
-        store = new LocalStore();
-        await store.init();
-        setStatus(`Supabase setup issue: ${error.message}. Running local mode instead.`, true);
+        console.error('Supabase startup failed.', error);
+        setStatus(`Supabase setup issue: ${error.message}. Check config.js and Supabase settings.`, true);
+        throw error;
       }
     } else {
-      store = new LocalStore();
-      await store.init();
+      const error = new Error("This build requires Supabase. Set APP_CONFIG.mode to 'supabase'.");
+      setStatus(error.message, true);
+      throw error;
     }
     state.isSupabase = store instanceof SupabaseStore;
     state.user = await store.currentUser();
-    setAuthState();
     state.ready = true;
     await loadAll();
   }
@@ -752,7 +698,7 @@
       switchTab(button.dataset.tab);
     });
 
-    els.floatingAddBtn.addEventListener('click', () => openModal(els.floatingAddBtn.dataset.store || 'ours'));
+    els.floatingAddBtn.addEventListener('click', () => openModal(els.floatingAddBtn.dataset.store || 'shopping'));
     els.closeModalBtn.addEventListener('click', closeModal);
     els.cancelModalBtn.addEventListener('click', closeModal);
 
@@ -783,34 +729,6 @@
         } catch (error) {
           handleError(error);
         }
-      }
-    });
-
-    els.signInBtn.addEventListener('click', async () => {
-      try {
-        await store.signIn(els.authEmail.value.trim(), els.authPassword.value);
-        state.user = await store.currentUser();
-        await loadAll();
-      } catch (error) {
-        handleError(error);
-      }
-    });
-
-    els.signUpBtn.addEventListener('click', async () => {
-      try {
-        await store.signUp(els.authEmail.value.trim(), els.authPassword.value);
-        setStatus('Sign-up submitted. If email confirmation is enabled, confirm it and then sign in.');
-      } catch (error) {
-        handleError(error);
-      }
-    });
-
-    els.signOutBtn.addEventListener('click', async () => {
-      try {
-        await store.signOut();
-        setStatus('Signed out.');
-      } catch (error) {
-        handleError(error);
       }
     });
   }

@@ -412,3 +412,41 @@ input[type="checkbox"] {
   .item-name { font-size: 0.86rem; }
   .modal-grid { grid-template-columns: 1fr; }
 }
+
+
+.parent-sections-wrap {
+  display: grid;
+  gap: 12px;
+  padding: 10px;
+}
+
+.parent-section {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fbfdfe;
+}
+
+.parent-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #f7fafc;
+  border-bottom: 1px solid #e5edf3;
+  flex-wrap: wrap;
+}
+
+.parent-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.compact-empty {
+  padding: 10px;
+  text-align: left;
+}
