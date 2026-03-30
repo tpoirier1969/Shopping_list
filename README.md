@@ -1,4 +1,4 @@
-# Shared Shopping List v1.0.5
+# Shared Shopping List v1.0.6
 
 This build is for **GitHub Pages + Supabase**.
 
@@ -7,7 +7,7 @@ It uses:
 - one built-in shared household scope hardwired into the app
 - no email/password form in the UI
 
-## What changed in v1.0.5
+## What changed in v1.0.6
 
 - removed the email/password UI
 - app auto-connects through Supabase anonymous auth
