@@ -6,7 +6,7 @@
   <title>Shared Shopping List</title>
   <meta name="theme-color" content="#113a5d" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.v1.0.6.css" />
+  <link rel="stylesheet" href="styles.v1.1.0.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -19,7 +19,7 @@
           <h1>Shared Shopping List</h1>
           <div class="subline">
             <span id="modeBadge" class="mode-badge">Starting…</span>
-            <span class="version-flag">v1.0.6</span>
+            <span class="version-flag">v1.1.0</span>
           </div>
         </div>
       </div>
@@ -27,21 +27,9 @@
 
     <div id="statusBar" class="status-bar"></div>
 
-    <nav class="tabbar" id="tabBar">
-      <button class="tab active" data-tab="shopping">Shopping</button>
-      <button class="tab" data-tab="menards">Menards</button>
-      <button class="tab" data-tab="parents">Parents</button>
-      <button class="tab" data-tab="notes">Notes</button>
-      <button class="tab" data-tab="removed">Recently Removed</button>
-    </nav>
+    <nav class="tabbar" id="tabBar"></nav>
 
-    <main class="main-grid">
-      <section id="view-shopping" class="view active"></section>
-      <section id="view-menards" class="view"></section>
-      <section id="view-parents" class="view"></section>
-      <section id="view-notes" class="view notes-view"></section>
-      <section id="view-removed" class="view"></section>
-    </main>
+    <main class="main-grid" id="mainGrid"></main>
   </div>
 
   <button id="floatingAddBtn" class="floating-add" aria-label="Add item">＋</button>
@@ -79,15 +67,25 @@
     </form>
   </dialog>
 
-  <template id="listControlsTemplate">
-    <div class="panel-head">
-      <div class="panel-title-row">
-        <h2 class="panel-title"></h2>
-        <div class="panel-actions"></div>
+  <dialog id="storeModal" class="modal-card small-modal">
+    <form method="dialog" id="storeForm">
+      <div class="modal-head">
+        <h2>Add Store</h2>
+        <button type="button" id="closeStoreModalBtn" class="icon-btn">✕</button>
       </div>
-    </div>
-  </template>
+      <div class="modal-grid compact-grid">
+        <label class="full-row">
+          <span>Store name</span>
+          <input id="storeNameInput" type="text" maxlength="60" autocomplete="off" required />
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="primary-btn">Save Store</button>
+        <button type="button" id="cancelStoreModalBtn" class="secondary-btn">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 
-  <script src="app.v1.0.6.js"></script>
+  <script src="app.v1.1.0.js"></script>
 </body>
 </html>
