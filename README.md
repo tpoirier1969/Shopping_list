@@ -1,4 +1,4 @@
-# Shared Shopping List v1.1.0
+# Shared Shopping List v1.3.0
 
 This build is for **GitHub Pages + Supabase**.
 
@@ -8,16 +8,16 @@ It uses:
 - no email/password form in the UI
 - shared custom store tabs
 
-## What changed in v1.1.0
+## What changed in v1.3.0
 
-- renamed **Shopping** to **Groceries**
-- added a shared **+ Store** button to create new store tabs
-- removed the cluttery count badges
-- added tab alert dots for Groceries, Menards, custom stores, Parents, and Notes when something needs attention
-- hid the Supabase badge and version flag on phones
-- kept parent-tagged grocery items in the main grocery flow while also showing them in **Parents**
+- added a new **nifty shopping-cart icon**
+- converted **Notes** into real note lists
+- added **Notes**, **Donna Notes**, and **Tod Notes** sections inside the Notes tab
+- added a checkbox on each note
+- added a **Delete** button on each note
+- migrates legacy shared note text into the new note list system
 
-## 1) Supabase setup
+## Supabase setup
 
 In Supabase:
 
@@ -27,26 +27,21 @@ In Supabase:
 4. Open the SQL editor.
 5. Run `supabase_schema.sql` again for this version.
 
-## 2) config.js
-
-Do not replace the whole file. Only update the two existing Supabase values already in it:
-
-- `supabaseUrl`
-- `supabaseAnonKey`
-
-No mode line is needed.
-
-## 3) Publish to GitHub Pages
+## GitHub Pages
 
 Upload these files to your repo root or Pages folder:
 
 - index.html
-- styles.v1.1.0.css
-- app.v1.1.0.js
-- config.js
+- styles.v1.3.0.css
+- app.v1.3.0.js
 - icon.svg
-- supabase_schema.sql (for your Supabase side, not for the site root)
+
+Keep your existing `config.js` in place. It is **not included** in this zip.
 
 ## Startup behavior
 
 This build is hard-wired for Supabase. There is no local fallback and no mode toggle. If setup fails, the app shows a visible startup error instead of leaving a blank page.
+
+## SQL note
+
+Run the updated `supabase_schema.sql` for this build. It adds the `shopping_note_items` table used by Notes, Donna Notes, and Tod Notes.

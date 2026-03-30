@@ -1,11 +1,19 @@
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="24" y="24" width="464" height="464" rx="96" fill="#E6F2F6"/>
-  <rect x="24" y="24" width="464" height="464" rx="96" stroke="#BFD7E2" stroke-width="12"/>
-  <path d="M124 146H168L191 328H354L388 196H210" stroke="#113A5D" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="224" cy="378" r="26" fill="#2F7E91"/>
-  <circle cx="334" cy="378" r="26" fill="#2F7E91"/>
-  <rect x="264" y="112" width="132" height="154" rx="22" fill="#ffffff" stroke="#113A5D" stroke-width="20"/>
-  <path d="M294 170L323 199L366 152" stroke="#2F7E91" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M300 222H360" stroke="#113A5D" stroke-width="18" stroke-linecap="round"/>
-  <path d="M124 146H168" stroke="#2F7E91" stroke-width="28" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Shopping cart icon">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#2f7e91"/>
+      <stop offset="100%" stop-color="#113a5d"/>
+    </linearGradient>
+    <linearGradient id="cart" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#dceaf3"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="236" height="236" rx="54" fill="url(#bg)"/>
+  <circle cx="184" cy="72" r="30" fill="#ffd86b" opacity="0.95"/>
+  <path d="M67 63h16l18 92h88l18-65H95" fill="none" stroke="url(#cart)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="119" cy="182" r="13" fill="#f7fbfe"/>
+  <circle cx="185" cy="182" r="13" fill="#f7fbfe"/>
+  <path d="M165 78l13 13 26-26" fill="none" stroke="#113a5d" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M107 104h74M111 126h60" stroke="#9fc3d4" stroke-width="10" stroke-linecap="round" opacity="0.85"/>
 </svg>
