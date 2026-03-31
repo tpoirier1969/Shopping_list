@@ -1,4 +1,4 @@
--- Shared Shopping List schema v1.3.0
+-- Shared Shopping List schema v1.4.0
 -- Shared mode: automatic anonymous sign-in, no email/password form.
 -- Important: in Supabase, enable Anonymous sign-ins under Authentication > Providers.
 
@@ -210,6 +210,9 @@ on public.shopping_notes (household_id);
 
 create unique index if not exists shopping_stores_household_store_key_idx
 on public.shopping_stores (household_id, store_key);
+
+create index if not exists shopping_items_household_created_idx
+on public.shopping_items (household_id, created_at);
 
 create index if not exists shopping_note_items_household_lane_idx
 on public.shopping_note_items (household_id, lane, sort_order, created_at);
