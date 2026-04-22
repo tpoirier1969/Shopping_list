@@ -1,4 +1,4 @@
--- Shared Shopping List schema v1.5.0
+-- Shared Shopping List schema v1.4.0
 -- Shared mode: automatic anonymous sign-in, no email/password form.
 -- Important: in Supabase, enable Anonymous sign-ins under Authentication > Providers.
 
@@ -100,7 +100,7 @@ where household_id is null or household_id = '';
 update public.shopping_items set store = 'shopping' where store = 'ours';
 update public.shopping_rules set store = 'shopping' where store = 'ours';
 update public.shopping_items set parent_target = 'schaffer' where parent_target = 'shafer';
-update public.shopping_note_items set lane = 'shared' where lane not in ('shared', 'donna', 'tod', 'trip-clothing', 'trip-tents', 'trip-fishing-gear', 'trip-boat-stuff', 'trip-cooking', 'trip-food', 'trip-toiletries', 'trip-bedding', 'trip-first-aid', 'trip-tools', 'trip-electronics', 'trip-paperwork', 'trip-dog-stuff', 'trip-misc') or lane is null;
+update public.shopping_note_items set lane = 'shared' where lane not in ('shared', 'donna', 'tod') or lane is null;
 
 alter table public.shopping_items drop constraint if exists shopping_items_store_check;
 alter table public.shopping_items drop constraint if exists shopping_items_parent_target_check;
@@ -118,7 +118,7 @@ alter table public.shopping_items
 
 alter table public.shopping_note_items
   add constraint shopping_note_items_lane_check
-  check (lane in ('shared', 'donna', 'tod', 'trip-clothing', 'trip-tents', 'trip-fishing-gear', 'trip-boat-stuff', 'trip-cooking', 'trip-food', 'trip-toiletries', 'trip-bedding', 'trip-first-aid', 'trip-tools', 'trip-electronics', 'trip-paperwork', 'trip-dog-stuff', 'trip-misc'));
+  check (lane in ('shared', 'donna', 'tod'));
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -226,69 +226,3 @@ do update set
   store_label = excluded.store_label,
   sort_order = excluded.sort_order,
   updated_at = now();
-
-
--- Realtime publication wiring for live sync
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_publication_rel pr
-    JOIN pg_publication p ON p.oid = pr.prpubid
-    JOIN pg_class c ON c.oid = pr.prrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE p.pubname = 'supabase_realtime'
-      AND n.nspname = 'public'
-      AND c.relname = 'shopping_items'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_items;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_publication_rel pr
-    JOIN pg_publication p ON p.oid = pr.prpubid
-    JOIN pg_class c ON c.oid = pr.prrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE p.pubname = 'supabase_realtime'
-      AND n.nspname = 'public'
-      AND c.relname = 'shopping_rules'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_rules;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_publication_rel pr
-    JOIN pg_publication p ON p.oid = pr.prpubid
-    JOIN pg_class c ON c.oid = pr.prrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE p.pubname = 'supabase_realtime'
-      AND n.nspname = 'public'
-      AND c.relname = 'shopping_stores'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_stores;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_publication_rel pr
-    JOIN pg_publication p ON p.oid = pr.prpubid
-    JOIN pg_class c ON c.oid = pr.prrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE p.pubname = 'supabase_realtime'
-      AND n.nspname = 'public'
-      AND c.relname = 'shopping_note_items'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.shopping_note_items;
-  END IF;
-END $$;
