@@ -503,7 +503,7 @@ stopRealtime() {
     const filterDef = getStoreFilterDef(filterKey);
     const items = getShoppingItems();
     if (!filterDef || filterDef.key === 'master') return items;
-    return items.filter((item) => filterDef.categories.includes(item.category));
+    return items.filter((item) => filterDef.categories.includes(getEffectiveCategory(item)));
   }
 
   function setModeBadge(text) {
