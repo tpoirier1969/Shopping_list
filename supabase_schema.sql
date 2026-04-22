@@ -1,11 +1,24 @@
--- Shared Shopping List schema v1.7.0
--- Isolated table family: shoppinglist_*
--- Shared mode: automatic anonymous sign-in, no email/password form.
--- Important: in Supabase, enable Anonymous sign-ins under Authentication > Providers.
+-- Shared Shopping List schema v1.7.1
+-- Airtight isolation revision.
+-- This app now lives in its own dedicated schema: tod_donna_shared_shopping
+-- IMPORTANT AFTER RUNNING THIS SQL:
+-- 1) Supabase Dashboard > Project Settings > API > Exposed schemas
+-- 2) Add: tod_donna_shared_shopping
+-- 3) Save, then hard refresh the app
+-- Anonymous sign-in must also be enabled under Authentication > Providers.
 
 create extension if not exists pgcrypto;
+create schema if not exists tod_donna_shared_shopping;
 
-create table if not exists public.shoppinglist_items (
+revoke all on schema tod_donna_shared_shopping from public;
+grant usage on schema tod_donna_shared_shopping to authenticated, service_role;
+
+grant select, insert, update, delete on all tables in schema tod_donna_shared_shopping to authenticated;
+grant all privileges on all tables in schema tod_donna_shared_shopping to service_role;
+alter default privileges in schema tod_donna_shared_shopping grant select, insert, update, delete on tables to authenticated;
+alter default privileges in schema tod_donna_shared_shopping grant all privileges on tables to service_role;
+
+create table if not exists tod_donna_shared_shopping.items (
   id uuid primary key default gen_random_uuid(),
   household_id text not null default 'tod-donna-shared',
   item_name text not null,
@@ -23,7 +36,7 @@ create table if not exists public.shoppinglist_items (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists public.shoppinglist_rules (
+create table if not exists tod_donna_shared_shopping.rules (
   id uuid primary key default gen_random_uuid(),
   household_id text not null default 'tod-donna-shared',
   item_key text not null,
@@ -33,13 +46,13 @@ create table if not exists public.shoppinglist_rules (
   unique (household_id, item_key, store)
 );
 
-create table if not exists public.shoppinglist_notes (
-  household_id text primary key,
+create table if not exists tod_donna_shared_shopping.notes (
+  household_id text primary key default 'tod-donna-shared',
   body text not null default '',
   updated_at timestamptz not null default now()
 );
 
-create table if not exists public.shoppinglist_stores (
+create table if not exists tod_donna_shared_shopping.stores (
   id uuid primary key default gen_random_uuid(),
   household_id text not null default 'tod-donna-shared',
   store_key text not null,
@@ -51,7 +64,7 @@ create table if not exists public.shoppinglist_stores (
   unique (household_id, store_key)
 );
 
-create table if not exists public.shoppinglist_categories (
+create table if not exists tod_donna_shared_shopping.categories (
   id uuid primary key default gen_random_uuid(),
   household_id text not null default 'tod-donna-shared',
   category_name text not null,
@@ -62,7 +75,7 @@ create table if not exists public.shoppinglist_categories (
   unique (household_id, category_name)
 );
 
-create table if not exists public.shoppinglist_note_items (
+create table if not exists tod_donna_shared_shopping.note_items (
   id uuid primary key default gen_random_uuid(),
   household_id text not null default 'tod-donna-shared',
   lane text not null default 'shared',
@@ -73,83 +86,30 @@ create table if not exists public.shoppinglist_note_items (
   updated_at timestamptz not null default now()
 );
 
-alter table public.shoppinglist_items add column if not exists household_id text not null default 'tod-donna-shared';
-alter table public.shoppinglist_rules add column if not exists household_id text not null default 'tod-donna-shared';
-alter table public.shoppinglist_notes add column if not exists household_id text not null default 'tod-donna-shared';
-alter table public.shoppinglist_stores add column if not exists household_id text not null default 'tod-donna-shared';
-alter table public.shoppinglist_stores add column if not exists store_key text;
-alter table public.shoppinglist_stores add column if not exists store_label text;
-alter table public.shoppinglist_stores add column if not exists sort_order integer not null default 100;
-alter table public.shoppinglist_stores add column if not exists route_categories jsonb not null default '[]'::jsonb;
-alter table public.shoppinglist_stores add column if not exists created_at timestamptz not null default now();
-alter table public.shoppinglist_stores add column if not exists updated_at timestamptz not null default now();
-alter table public.shoppinglist_categories add column if not exists household_id text not null default 'tod-donna-shared';
-alter table public.shoppinglist_categories add column if not exists category_name text;
-alter table public.shoppinglist_categories add column if not exists sort_order integer not null default 100;
-alter table public.shoppinglist_categories add column if not exists is_builtin boolean not null default false;
-alter table public.shoppinglist_categories add column if not exists created_at timestamptz not null default now();
-alter table public.shoppinglist_categories add column if not exists updated_at timestamptz not null default now();
-alter table public.shoppinglist_note_items add column if not exists household_id text not null default 'tod-donna-shared';
-alter table public.shoppinglist_note_items add column if not exists lane text not null default 'shared';
-alter table public.shoppinglist_note_items add column if not exists body text not null default '';
-alter table public.shoppinglist_note_items add column if not exists is_checked boolean not null default false;
-alter table public.shoppinglist_note_items add column if not exists sort_order bigint not null default extract(epoch from now())::bigint;
-alter table public.shoppinglist_note_items add column if not exists created_at timestamptz not null default now();
-alter table public.shoppinglist_note_items add column if not exists updated_at timestamptz not null default now();
+create index if not exists items_household_idx on tod_donna_shared_shopping.items (household_id);
+create index if not exists items_household_active_idx on tod_donna_shared_shopping.items (household_id, removed, on_shopping_list, delivered);
+create index if not exists rules_household_idx on tod_donna_shared_shopping.rules (household_id);
+create index if not exists stores_household_sort_idx on tod_donna_shared_shopping.stores (household_id, sort_order, created_at);
+create index if not exists categories_household_sort_idx on tod_donna_shared_shopping.categories (household_id, sort_order, category_name);
+create index if not exists note_items_household_lane_sort_idx on tod_donna_shared_shopping.note_items (household_id, lane, sort_order, created_at);
 
-update public.shoppinglist_items
-set household_id = coalesce(nullif(household_id, ''), 'tod-donna-shared')
-where household_id is null or household_id = '';
+alter table tod_donna_shared_shopping.items drop constraint if exists items_parent_target_check;
+alter table tod_donna_shared_shopping.items drop constraint if exists items_removed_reason_check;
+alter table tod_donna_shared_shopping.note_items drop constraint if exists note_items_lane_check;
 
-update public.shoppinglist_rules
-set household_id = coalesce(nullif(household_id, ''), 'tod-donna-shared')
-where household_id is null or household_id = '';
-
-update public.shoppinglist_notes
-set household_id = coalesce(nullif(household_id, ''), 'tod-donna-shared')
-where household_id is null or household_id = '';
-
-update public.shoppinglist_stores
-set household_id = coalesce(nullif(household_id, ''), 'tod-donna-shared')
-where household_id is null or household_id = '';
-
-update public.shoppinglist_categories
-set household_id = coalesce(nullif(household_id, ''), 'tod-donna-shared')
-where household_id is null or household_id = '';
-
-update public.shoppinglist_note_items
-set household_id = coalesce(nullif(household_id, ''), 'tod-donna-shared')
-where household_id is null or household_id = '';
-
-update public.shoppinglist_items set store = 'shopping' where store = 'ours';
-update public.shoppinglist_rules set store = 'shopping' where store = 'ours';
-update public.shoppinglist_items set parent_target = 'schaffer' where parent_target = 'shafer';
-update public.shoppinglist_stores
-set route_categories = '[]'::jsonb
-where route_categories is null or jsonb_typeof(route_categories) <> 'array';
-
-update public.shoppinglist_note_items
-set lane = 'shared'
-where lane not in ('shared', 'donna', 'tod', 'trip-clothing', 'trip-tents', 'trip-fishing-gear', 'trip-boat-stuff', 'trip-cooking', 'trip-food', 'trip-toiletries', 'trip-bedding', 'trip-first-aid', 'trip-tools', 'trip-electronics', 'trip-paperwork', 'trip-dog-stuff', 'trip-misc')
-   or lane is null;
-
-alter table public.shoppinglist_items drop constraint if exists shoppinglist_items_parent_target_check;
-alter table public.shoppinglist_items drop constraint if exists shoppinglist_items_removed_reason_check;
-alter table public.shoppinglist_note_items drop constraint if exists shoppinglist_note_items_lane_check;
-
-alter table public.shoppinglist_items
-  add constraint shoppinglist_items_parent_target_check
+alter table tod_donna_shared_shopping.items
+  add constraint items_parent_target_check
   check (parent_target in ('poirier', 'schaffer') or parent_target is null);
 
-alter table public.shoppinglist_items
-  add constraint shoppinglist_items_removed_reason_check
+alter table tod_donna_shared_shopping.items
+  add constraint items_removed_reason_check
   check (removed_reason in ('manual', 'shopped', 'delivered') or removed_reason is null);
 
-alter table public.shoppinglist_note_items
-  add constraint shoppinglist_note_items_lane_check
+alter table tod_donna_shared_shopping.note_items
+  add constraint note_items_lane_check
   check (lane in ('shared', 'donna', 'tod', 'trip-clothing', 'trip-tents', 'trip-fishing-gear', 'trip-boat-stuff', 'trip-cooking', 'trip-food', 'trip-toiletries', 'trip-bedding', 'trip-first-aid', 'trip-tools', 'trip-electronics', 'trip-paperwork', 'trip-dog-stuff', 'trip-misc'));
 
-create or replace function public.shoppinglist_set_updated_at()
+create or replace function tod_donna_shared_shopping.set_updated_at()
 returns trigger
 language plpgsql
 as $$
@@ -159,111 +119,298 @@ begin
 end;
 $$;
 
-drop trigger if exists shoppinglist_items_updated_at on public.shoppinglist_items;
-create trigger shoppinglist_items_updated_at
-before update on public.shoppinglist_items
-for each row execute function public.shoppinglist_set_updated_at();
+drop trigger if exists items_updated_at on tod_donna_shared_shopping.items;
+create trigger items_updated_at before update on tod_donna_shared_shopping.items for each row execute function tod_donna_shared_shopping.set_updated_at();
 
-drop trigger if exists shoppinglist_rules_updated_at on public.shoppinglist_rules;
-create trigger shoppinglist_rules_updated_at
-before update on public.shoppinglist_rules
-for each row execute function public.shoppinglist_set_updated_at();
+drop trigger if exists rules_updated_at on tod_donna_shared_shopping.rules;
+create trigger rules_updated_at before update on tod_donna_shared_shopping.rules for each row execute function tod_donna_shared_shopping.set_updated_at();
 
-drop trigger if exists shoppinglist_notes_updated_at on public.shoppinglist_notes;
-create trigger shoppinglist_notes_updated_at
-before update on public.shoppinglist_notes
-for each row execute function public.shoppinglist_set_updated_at();
+drop trigger if exists notes_updated_at on tod_donna_shared_shopping.notes;
+create trigger notes_updated_at before update on tod_donna_shared_shopping.notes for each row execute function tod_donna_shared_shopping.set_updated_at();
 
-drop trigger if exists shoppinglist_stores_updated_at on public.shoppinglist_stores;
-create trigger shoppinglist_stores_updated_at
-before update on public.shoppinglist_stores
-for each row execute function public.shoppinglist_set_updated_at();
+drop trigger if exists stores_updated_at on tod_donna_shared_shopping.stores;
+create trigger stores_updated_at before update on tod_donna_shared_shopping.stores for each row execute function tod_donna_shared_shopping.set_updated_at();
 
-drop trigger if exists shoppinglist_categories_updated_at on public.shoppinglist_categories;
-create trigger shoppinglist_categories_updated_at
-before update on public.shoppinglist_categories
-for each row execute function public.shoppinglist_set_updated_at();
+drop trigger if exists categories_updated_at on tod_donna_shared_shopping.categories;
+create trigger categories_updated_at before update on tod_donna_shared_shopping.categories for each row execute function tod_donna_shared_shopping.set_updated_at();
 
-drop trigger if exists shoppinglist_note_items_updated_at on public.shoppinglist_note_items;
-create trigger shoppinglist_note_items_updated_at
-before update on public.shoppinglist_note_items
-for each row execute function public.shoppinglist_set_updated_at();
+drop trigger if exists note_items_updated_at on tod_donna_shared_shopping.note_items;
+create trigger note_items_updated_at before update on tod_donna_shared_shopping.note_items for each row execute function tod_donna_shared_shopping.set_updated_at();
 
-alter table public.shoppinglist_items enable row level security;
-alter table public.shoppinglist_rules enable row level security;
-alter table public.shoppinglist_notes enable row level security;
-alter table public.shoppinglist_stores enable row level security;
-alter table public.shoppinglist_categories enable row level security;
-alter table public.shoppinglist_note_items enable row level security;
+alter table tod_donna_shared_shopping.items enable row level security;
+alter table tod_donna_shared_shopping.rules enable row level security;
+alter table tod_donna_shared_shopping.notes enable row level security;
+alter table tod_donna_shared_shopping.stores enable row level security;
+alter table tod_donna_shared_shopping.categories enable row level security;
+alter table tod_donna_shared_shopping.note_items enable row level security;
 
-drop policy if exists "shoppinglist_items_shared_authenticated" on public.shoppinglist_items;
-drop policy if exists "shoppinglist_rules_shared_authenticated" on public.shoppinglist_rules;
-drop policy if exists "shoppinglist_notes_shared_authenticated" on public.shoppinglist_notes;
-drop policy if exists "shoppinglist_stores_shared_authenticated" on public.shoppinglist_stores;
-drop policy if exists "shoppinglist_categories_shared_authenticated" on public.shoppinglist_categories;
-drop policy if exists "shoppinglist_note_items_shared_authenticated" on public.shoppinglist_note_items;
+drop policy if exists items_household_policy on tod_donna_shared_shopping.items;
+drop policy if exists rules_household_policy on tod_donna_shared_shopping.rules;
+drop policy if exists notes_household_policy on tod_donna_shared_shopping.notes;
+drop policy if exists stores_household_policy on tod_donna_shared_shopping.stores;
+drop policy if exists categories_household_policy on tod_donna_shared_shopping.categories;
+drop policy if exists note_items_household_policy on tod_donna_shared_shopping.note_items;
 
-create policy "shoppinglist_items_shared_authenticated"
-on public.shoppinglist_items
-for all
-to authenticated
-using (true)
-with check (true);
+create policy items_household_policy on tod_donna_shared_shopping.items
+  for all to authenticated
+  using (household_id = 'tod-donna-shared')
+  with check (household_id = 'tod-donna-shared');
 
-create policy "shoppinglist_rules_shared_authenticated"
-on public.shoppinglist_rules
-for all
-to authenticated
-using (true)
-with check (true);
+create policy rules_household_policy on tod_donna_shared_shopping.rules
+  for all to authenticated
+  using (household_id = 'tod-donna-shared')
+  with check (household_id = 'tod-donna-shared');
 
-create policy "shoppinglist_notes_shared_authenticated"
-on public.shoppinglist_notes
-for all
-to authenticated
-using (true)
-with check (true);
+create policy notes_household_policy on tod_donna_shared_shopping.notes
+  for all to authenticated
+  using (household_id = 'tod-donna-shared')
+  with check (household_id = 'tod-donna-shared');
 
-create policy "shoppinglist_stores_shared_authenticated"
-on public.shoppinglist_stores
-for all
-to authenticated
-using (true)
-with check (true);
+create policy stores_household_policy on tod_donna_shared_shopping.stores
+  for all to authenticated
+  using (household_id = 'tod-donna-shared')
+  with check (household_id = 'tod-donna-shared');
 
-create policy "shoppinglist_categories_shared_authenticated"
-on public.shoppinglist_categories
-for all
-to authenticated
-using (true)
-with check (true);
+create policy categories_household_policy on tod_donna_shared_shopping.categories
+  for all to authenticated
+  using (household_id = 'tod-donna-shared')
+  with check (household_id = 'tod-donna-shared');
 
-create policy "shoppinglist_note_items_shared_authenticated"
-on public.shoppinglist_note_items
-for all
-to authenticated
-using (true)
-with check (true);
+create policy note_items_household_policy on tod_donna_shared_shopping.note_items
+  for all to authenticated
+  using (household_id = 'tod-donna-shared')
+  with check (household_id = 'tod-donna-shared');
 
-create unique index if not exists shoppinglist_rules_household_item_store_idx
-on public.shoppinglist_rules (household_id, item_key, store);
+-- First migrate from the newer public.shoppinglist_* family if it exists.
+DO $$
+BEGIN
+  IF to_regclass('public.shoppinglist_items') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.items (
+      id, household_id, item_name, normalized_name, category, store, parent_target,
+      purchased_main, parent_checked, on_shopping_list, delivered, removed,
+      removed_reason, created_at, updated_at
+    )
+    SELECT
+      id,
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      item_name,
+      normalized_name,
+      category,
+      case when store = 'ours' then 'shopping' else store end,
+      case when parent_target = 'shafer' then 'schaffer' else parent_target end,
+      coalesce(purchased_main, false),
+      coalesce(parent_checked, false),
+      coalesce(on_shopping_list, true),
+      coalesce(delivered, false),
+      coalesce(removed, false),
+      removed_reason,
+      coalesce(created_at, now()),
+      coalesce(updated_at, now())
+    FROM public.shoppinglist_items
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
 
-create unique index if not exists shoppinglist_notes_household_id_idx
-on public.shoppinglist_notes (household_id);
+DO $$
+BEGIN
+  IF to_regclass('public.shoppinglist_rules') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.rules (id, household_id, item_key, category, store, updated_at)
+    SELECT
+      id,
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      item_key,
+      category,
+      case when store = 'ours' then 'shopping' else store end,
+      coalesce(updated_at, now())
+    FROM public.shoppinglist_rules
+    ON CONFLICT (household_id, item_key, store) DO NOTHING;
+  END IF;
+END $$;
 
-create unique index if not exists shoppinglist_stores_household_store_key_idx
-on public.shoppinglist_stores (household_id, store_key);
+DO $$
+BEGIN
+  IF to_regclass('public.shoppinglist_notes') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.notes (household_id, body, updated_at)
+    SELECT
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      body,
+      coalesce(updated_at, now())
+    FROM public.shoppinglist_notes
+    ON CONFLICT (household_id) DO NOTHING;
+  END IF;
+END $$;
 
-create unique index if not exists shoppinglist_categories_household_name_idx
-on public.shoppinglist_categories (household_id, category_name);
+DO $$
+BEGIN
+  IF to_regclass('public.shoppinglist_categories') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.categories (id, household_id, category_name, sort_order, is_builtin, created_at, updated_at)
+    SELECT
+      id,
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      category_name,
+      coalesce(sort_order, 100),
+      coalesce(is_builtin, false),
+      coalesce(created_at, now()),
+      coalesce(updated_at, now())
+    FROM public.shoppinglist_categories
+    ON CONFLICT (household_id, category_name) DO NOTHING;
+  END IF;
+END $$;
 
-create index if not exists shoppinglist_items_household_created_idx
-on public.shoppinglist_items (household_id, created_at);
+DO $$
+BEGIN
+  IF to_regclass('public.shoppinglist_stores') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.stores (id, household_id, store_key, store_label, sort_order, route_categories, created_at, updated_at)
+    SELECT
+      id,
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      store_key,
+      case when store_key = 'shopping' and store_label = 'Groceries' then 'Shopping' else store_label end,
+      coalesce(sort_order, 100),
+      case
+        when route_categories is null or jsonb_typeof(route_categories) <> 'array' then '[]'::jsonb
+        else route_categories
+      end,
+      coalesce(created_at, now()),
+      coalesce(updated_at, now())
+    FROM public.shoppinglist_stores
+    WHERE store_key is not null
+    ON CONFLICT (household_id, store_key) DO NOTHING;
+  END IF;
+END $$;
 
-create index if not exists shoppinglist_note_items_household_lane_idx
-on public.shoppinglist_note_items (household_id, lane, sort_order, created_at);
+DO $$
+BEGIN
+  IF to_regclass('public.shoppinglist_note_items') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.note_items (id, household_id, lane, body, is_checked, sort_order, created_at, updated_at)
+    SELECT
+      id,
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      case
+        when lane in ('shared', 'donna', 'tod', 'trip-clothing', 'trip-tents', 'trip-fishing-gear', 'trip-boat-stuff', 'trip-cooking', 'trip-food', 'trip-toiletries', 'trip-bedding', 'trip-first-aid', 'trip-tools', 'trip-electronics', 'trip-paperwork', 'trip-dog-stuff', 'trip-misc') then lane
+        else 'shared'
+      end,
+      body,
+      coalesce(is_checked, false),
+      coalesce(sort_order, extract(epoch from now())::bigint),
+      coalesce(created_at, now()),
+      coalesce(updated_at, now())
+    FROM public.shoppinglist_note_items
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
 
-insert into public.shoppinglist_categories (household_id, category_name, sort_order, is_builtin)
+-- Then migrate from the oldest public.shopping_* family if it exists.
+DO $$
+BEGIN
+  IF to_regclass('public.shopping_items') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.items (
+      id, household_id, item_name, normalized_name, category, store, parent_target,
+      purchased_main, parent_checked, on_shopping_list, delivered, removed,
+      removed_reason, created_at, updated_at
+    )
+    SELECT
+      id,
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      item_name,
+      normalized_name,
+      category,
+      case when store = 'ours' then 'shopping' else store end,
+      case when parent_target = 'shafer' then 'schaffer' else parent_target end,
+      coalesce(purchased_main, false),
+      coalesce(parent_checked, false),
+      coalesce(on_shopping_list, true),
+      coalesce(delivered, false),
+      coalesce(removed, false),
+      removed_reason,
+      coalesce(created_at, now()),
+      coalesce(updated_at, now())
+    FROM public.shopping_items
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.shopping_rules') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.rules (id, household_id, item_key, category, store, updated_at)
+    SELECT
+      id,
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      item_key,
+      category,
+      case when store = 'ours' then 'shopping' else store end,
+      coalesce(updated_at, now())
+    FROM public.shopping_rules
+    ON CONFLICT (household_id, item_key, store) DO NOTHING;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.shopping_notes') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.notes (household_id, body, updated_at)
+    SELECT
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      body,
+      coalesce(updated_at, now())
+    FROM public.shopping_notes
+    ON CONFLICT (household_id) DO NOTHING;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.shopping_stores') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.stores (id, household_id, store_key, store_label, sort_order, route_categories, created_at, updated_at)
+    SELECT
+      id,
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      store_key,
+      case when store_key = 'shopping' and store_label = 'Groceries' then 'Shopping' else store_label end,
+      coalesce(sort_order, 100),
+      '[]'::jsonb,
+      coalesce(created_at, now()),
+      coalesce(updated_at, now())
+    FROM public.shopping_stores
+    WHERE store_key is not null
+    ON CONFLICT (household_id, store_key) DO NOTHING;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.shopping_note_items') IS NOT NULL THEN
+    INSERT INTO tod_donna_shared_shopping.note_items (id, household_id, lane, body, is_checked, sort_order, created_at, updated_at)
+    SELECT
+      id,
+      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+      case
+        when lane in ('shared', 'donna', 'tod', 'trip-clothing', 'trip-tents', 'trip-fishing-gear', 'trip-boat-stuff', 'trip-cooking', 'trip-food', 'trip-toiletries', 'trip-bedding', 'trip-first-aid', 'trip-tools', 'trip-electronics', 'trip-paperwork', 'trip-dog-stuff', 'trip-misc') then lane
+        else 'shared'
+      end,
+      body,
+      coalesce(is_checked, false),
+      coalesce(sort_order, extract(epoch from now())::bigint),
+      coalesce(created_at, now()),
+      coalesce(updated_at, now())
+    FROM public.shopping_note_items
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
+
+update tod_donna_shared_shopping.items set store = 'shopping' where store = 'ours';
+update tod_donna_shared_shopping.rules set store = 'shopping' where store = 'ours';
+update tod_donna_shared_shopping.items set parent_target = 'schaffer' where parent_target = 'shafer';
+update tod_donna_shared_shopping.stores
+set route_categories = '[]'::jsonb
+where route_categories is null or jsonb_typeof(route_categories) <> 'array';
+update tod_donna_shared_shopping.note_items
+set lane = 'shared'
+where lane not in ('shared', 'donna', 'tod', 'trip-clothing', 'trip-tents', 'trip-fishing-gear', 'trip-boat-stuff', 'trip-cooking', 'trip-food', 'trip-toiletries', 'trip-bedding', 'trip-first-aid', 'trip-tools', 'trip-electronics', 'trip-paperwork', 'trip-dog-stuff', 'trip-misc')
+   or lane is null;
+
+insert into tod_donna_shared_shopping.categories (household_id, category_name, sort_order, is_builtin)
 values
   ('tod-donna-shared', 'Fruit', 10, true),
   ('tod-donna-shared', 'Vegetables', 20, true),
@@ -304,236 +451,82 @@ values
   ('tod-donna-shared', 'Shelving', 370, true),
   ('tod-donna-shared', 'Auto', 380, true),
   ('tod-donna-shared', 'Other', 390, true)
-on conflict (household_id, category_name)
-do update set
-  sort_order = excluded.sort_order,
-  is_builtin = shoppinglist_categories.is_builtin or excluded.is_builtin,
-  updated_at = now();
+on conflict (household_id, category_name) do nothing;
 
-insert into public.shoppinglist_stores (household_id, store_key, store_label, sort_order, route_categories)
+insert into tod_donna_shared_shopping.stores (household_id, store_key, store_label, sort_order, route_categories)
 values
   ('tod-donna-shared', 'shopping', 'Shopping', 10, '[]'::jsonb),
-  ('tod-donna-shared', 'walmart', 'Walmart', 20, '["Fruit","Vegetables","Frozen","Condiments","Gluten Free","Canned","Ethnic","Dried","Baking supplies","Snacks","Baked goods","Coffee/Tea","Juice/Pop","Dairy","Eggs","Cheese","Meat","Alcohol","Paper Goods","Cleaning Supplies","Pet Supplies","Clothes","Sporting Goods","Auto","Gardening","Household","Fasteners","Holiday","Health and Beauty","Candy"]'::jsonb),
+  ('tod-donna-shared', 'walmart', 'Walmart', 20, '["Fruit","Vegetables","Frozen","Condiments","Gluten Free","Canned","Ethnic","Dried","Spices","Baking supplies","Snacks","Baked goods","Coffee/Tea","Juice/Pop","Dairy","Eggs","Cheese","Meat","Alcohol","Paper Goods","Cleaning Supplies","Pet Supplies","Clothes","Sporting Goods","Household","Gardening","Holiday","Health and Beauty","Candy"]'::jsonb),
   ('tod-donna-shared', 'meiers', 'Meier''s', 30, '["Fruit","Vegetables","Meat","Baked goods","Condiments","Canned","Dried","Ethnic","Spices","Baking supplies","Coffee/Tea","Cheese","Frozen","Dairy","Eggs","Cleaning Supplies","Snacks","Paper Goods","Candy","Juice/Pop","Alcohol","Clothes","Health and Beauty","Gardening","Pet Supplies"]'::jsonb),
   ('tod-donna-shared', 'super-one-negaunee', 'Super One Negaunee', 40, '["Fruit","Vegetables","Condiments","Meat","Canned","Gluten Free","Ethnic","Baking supplies","Coffee/Tea","Paper Goods","Snacks","Dairy","Eggs","Frozen","Alcohol"]'::jsonb),
   ('tod-donna-shared', 'menards', 'Menards', 50, '["Gardening","Plumbing","Flooring","Paint","Pet Supplies","Fasteners","Tools","Windows/Doors","Lumber","Shelving","Auto"]'::jsonb),
   ('tod-donna-shared', 'super-one-marquette', 'Super One Marquette', 60, '[]'::jsonb),
   ('tod-donna-shared', 'mqt-food-co-op', 'Mqt. Food Co-Op', 70, '[]'::jsonb)
-on conflict (household_id, store_key)
-do update set
-  store_label = excluded.store_label,
-  sort_order = excluded.sort_order,
-  route_categories = excluded.route_categories,
-  updated_at = now();
+on conflict (household_id, store_key) do nothing;
 
--- migrate older shopping_* data into the isolated shoppinglist_* tables if present
+-- Realtime publication wiring for live sync.
 DO $$
 BEGIN
-  IF to_regclass('public.shopping_items') IS NOT NULL THEN
-    EXECUTE $sql$
-      insert into public.shoppinglist_items (
-        id, household_id, item_name, normalized_name, category, store, parent_target,
-        purchased_main, parent_checked, on_shopping_list, delivered, removed,
-        removed_reason, created_at, updated_at
-      )
-      select
-        id,
-        coalesce(nullif(household_id, ''), 'tod-donna-shared'),
-        item_name,
-        normalized_name,
-        category,
-        case when store = 'ours' then 'shopping' else store end,
-        case when parent_target = 'shafer' then 'schaffer' else parent_target end,
-        coalesce(purchased_main, false),
-        coalesce(parent_checked, false),
-        coalesce(on_shopping_list, true),
-        coalesce(delivered, false),
-        coalesce(removed, false),
-        removed_reason,
-        coalesce(created_at, now()),
-        coalesce(updated_at, now())
-      from public.shopping_items
-      on conflict (id) do update set
-        household_id = excluded.household_id,
-        item_name = excluded.item_name,
-        normalized_name = excluded.normalized_name,
-        category = excluded.category,
-        store = excluded.store,
-        parent_target = excluded.parent_target,
-        purchased_main = excluded.purchased_main,
-        parent_checked = excluded.parent_checked,
-        on_shopping_list = excluded.on_shopping_list,
-        delivered = excluded.delivered,
-        removed = excluded.removed,
-        removed_reason = excluded.removed_reason,
-        created_at = excluded.created_at,
-        updated_at = excluded.updated_at
-    $sql$;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF to_regclass('public.shopping_rules') IS NOT NULL THEN
-    EXECUTE $sql$
-      insert into public.shoppinglist_rules (
-        id, household_id, item_key, category, store, updated_at
-      )
-      select
-        id,
-        coalesce(nullif(household_id, ''), 'tod-donna-shared'),
-        item_key,
-        category,
-        case when store = 'ours' then 'shopping' else store end,
-        coalesce(updated_at, now())
-      from public.shopping_rules
-      on conflict (household_id, item_key, store) do update set
-        category = excluded.category,
-        updated_at = excluded.updated_at
-    $sql$;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF to_regclass('public.shopping_notes') IS NOT NULL THEN
-    EXECUTE $sql$
-      insert into public.shoppinglist_notes (
-        household_id, body, updated_at
-      )
-      select
-        coalesce(nullif(household_id, ''), 'tod-donna-shared'),
-        body,
-        coalesce(updated_at, now())
-      from public.shopping_notes
-      on conflict (household_id) do update set
-        body = excluded.body,
-        updated_at = excluded.updated_at
-    $sql$;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF to_regclass('public.shopping_stores') IS NOT NULL THEN
-    EXECUTE $sql$
-      insert into public.shoppinglist_stores (
-        id, household_id, store_key, store_label, sort_order, created_at, updated_at
-      )
-      select
-        id,
-        coalesce(nullif(household_id, ''), 'tod-donna-shared'),
-        store_key,
-        case
-          when store_key = 'shopping' and store_label = 'Groceries' then 'Shopping'
-          else store_label
-        end,
-        coalesce(sort_order, 100),
-        coalesce(created_at, now()),
-        coalesce(updated_at, now())
-      from public.shopping_stores
-      where store_key is not null
-      on conflict (household_id, store_key) do update set
-        store_label = excluded.store_label,
-        sort_order = excluded.sort_order,
-        updated_at = excluded.updated_at
-    $sql$;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF to_regclass('public.shopping_note_items') IS NOT NULL THEN
-    EXECUTE $sql$
-      insert into public.shoppinglist_note_items (
-        id, household_id, lane, body, is_checked, sort_order, created_at, updated_at
-      )
-      select
-        id,
-        coalesce(nullif(household_id, ''), 'tod-donna-shared'),
-        case
-          when lane in ('shared', 'donna', 'tod', 'trip-clothing', 'trip-tents', 'trip-fishing-gear', 'trip-boat-stuff', 'trip-cooking', 'trip-food', 'trip-toiletries', 'trip-bedding', 'trip-first-aid', 'trip-tools', 'trip-electronics', 'trip-paperwork', 'trip-dog-stuff', 'trip-misc') then lane
-          else 'shared'
-        end,
-        body,
-        coalesce(is_checked, false),
-        coalesce(sort_order, extract(epoch from now())::bigint),
-        coalesce(created_at, now()),
-        coalesce(updated_at, now())
-      from public.shopping_note_items
-      on conflict (id) do update set
-        household_id = excluded.household_id,
-        lane = excluded.lane,
-        body = excluded.body,
-        is_checked = excluded.is_checked,
-        sort_order = excluded.sort_order,
-        created_at = excluded.created_at,
-        updated_at = excluded.updated_at
-    $sql$;
-  END IF;
-END $$;
-
--- Realtime publication wiring for live sync
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_publication_rel pr
-    JOIN pg_publication p ON p.oid = pr.prpubid
-    JOIN pg_class c ON c.oid = pr.prrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE p.pubname = 'supabase_realtime'
-      AND n.nspname = 'public'
-      AND c.relname = 'shoppinglist_items'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.shoppinglist_items;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_publication_rel pr
-    JOIN pg_publication p ON p.oid = pr.prpubid
-    JOIN pg_class c ON c.oid = pr.prrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE p.pubname = 'supabase_realtime'
-      AND n.nspname = 'public'
-      AND c.relname = 'shoppinglist_rules'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.shoppinglist_rules;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_publication_rel pr
-    JOIN pg_publication p ON p.oid = pr.prpubid
-    JOIN pg_class c ON c.oid = pr.prrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE p.pubname = 'supabase_realtime'
-      AND n.nspname = 'public'
-      AND c.relname = 'shoppinglist_stores'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.shoppinglist_stores;
-  END IF;
-END $$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_publication_rel pr
-    JOIN pg_publication p ON p.oid = pr.prpubid
-    JOIN pg_class c ON c.oid = pr.prrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE p.pubname = 'supabase_realtime'
-      AND n.nspname = 'public'
-      AND c.relname = 'shoppinglist_note_items'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.shoppinglist_note_items;
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_publication_rel pr
+      JOIN pg_publication p ON p.oid = pr.prpubid
+      JOIN pg_class c ON c.oid = pr.prrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE p.pubname = 'supabase_realtime' AND n.nspname = 'tod_donna_shared_shopping' AND c.relname = 'items'
+    ) THEN
+      ALTER PUBLICATION supabase_realtime ADD TABLE tod_donna_shared_shopping.items;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_publication_rel pr
+      JOIN pg_publication p ON p.oid = pr.prpubid
+      JOIN pg_class c ON c.oid = pr.prrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE p.pubname = 'supabase_realtime' AND n.nspname = 'tod_donna_shared_shopping' AND c.relname = 'rules'
+    ) THEN
+      ALTER PUBLICATION supabase_realtime ADD TABLE tod_donna_shared_shopping.rules;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_publication_rel pr
+      JOIN pg_publication p ON p.oid = pr.prpubid
+      JOIN pg_class c ON c.oid = pr.prrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE p.pubname = 'supabase_realtime' AND n.nspname = 'tod_donna_shared_shopping' AND c.relname = 'stores'
+    ) THEN
+      ALTER PUBLICATION supabase_realtime ADD TABLE tod_donna_shared_shopping.stores;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_publication_rel pr
+      JOIN pg_publication p ON p.oid = pr.prpubid
+      JOIN pg_class c ON c.oid = pr.prrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE p.pubname = 'supabase_realtime' AND n.nspname = 'tod_donna_shared_shopping' AND c.relname = 'categories'
+    ) THEN
+      ALTER PUBLICATION supabase_realtime ADD TABLE tod_donna_shared_shopping.categories;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_publication_rel pr
+      JOIN pg_publication p ON p.oid = pr.prpubid
+      JOIN pg_class c ON c.oid = pr.prrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE p.pubname = 'supabase_realtime' AND n.nspname = 'tod_donna_shared_shopping' AND c.relname = 'note_items'
+    ) THEN
+      ALTER PUBLICATION supabase_realtime ADD TABLE tod_donna_shared_shopping.note_items;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_publication_rel pr
+      JOIN pg_publication p ON p.oid = pr.prpubid
+      JOIN pg_class c ON c.oid = pr.prrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE p.pubname = 'supabase_realtime' AND n.nspname = 'tod_donna_shared_shopping' AND c.relname = 'notes'
+    ) THEN
+      ALTER PUBLICATION supabase_realtime ADD TABLE tod_donna_shared_shopping.notes;
+    END IF;
   END IF;
 END $$;
