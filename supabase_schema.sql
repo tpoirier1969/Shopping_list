@@ -1,4 +1,4 @@
--- Shared Shopping List schema v1.6.1
+-- Shared Shopping List schema v1.7.0
 -- Isolated table family: shoppinglist_*
 -- Shared mode: automatic anonymous sign-in, no email/password form.
 -- Important: in Supabase, enable Anonymous sign-ins under Authentication > Providers.
@@ -45,9 +45,21 @@ create table if not exists public.shoppinglist_stores (
   store_key text not null,
   store_label text not null,
   sort_order integer not null default 100,
+  route_categories jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (household_id, store_key)
+);
+
+create table if not exists public.shoppinglist_categories (
+  id uuid primary key default gen_random_uuid(),
+  household_id text not null default 'tod-donna-shared',
+  category_name text not null,
+  sort_order integer not null default 100,
+  is_builtin boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (household_id, category_name)
 );
 
 create table if not exists public.shoppinglist_note_items (
@@ -68,8 +80,15 @@ alter table public.shoppinglist_stores add column if not exists household_id tex
 alter table public.shoppinglist_stores add column if not exists store_key text;
 alter table public.shoppinglist_stores add column if not exists store_label text;
 alter table public.shoppinglist_stores add column if not exists sort_order integer not null default 100;
+alter table public.shoppinglist_stores add column if not exists route_categories jsonb not null default '[]'::jsonb;
 alter table public.shoppinglist_stores add column if not exists created_at timestamptz not null default now();
 alter table public.shoppinglist_stores add column if not exists updated_at timestamptz not null default now();
+alter table public.shoppinglist_categories add column if not exists household_id text not null default 'tod-donna-shared';
+alter table public.shoppinglist_categories add column if not exists category_name text;
+alter table public.shoppinglist_categories add column if not exists sort_order integer not null default 100;
+alter table public.shoppinglist_categories add column if not exists is_builtin boolean not null default false;
+alter table public.shoppinglist_categories add column if not exists created_at timestamptz not null default now();
+alter table public.shoppinglist_categories add column if not exists updated_at timestamptz not null default now();
 alter table public.shoppinglist_note_items add column if not exists household_id text not null default 'tod-donna-shared';
 alter table public.shoppinglist_note_items add column if not exists lane text not null default 'shared';
 alter table public.shoppinglist_note_items add column if not exists body text not null default '';
@@ -94,6 +113,10 @@ update public.shoppinglist_stores
 set household_id = coalesce(nullif(household_id, ''), 'tod-donna-shared')
 where household_id is null or household_id = '';
 
+update public.shoppinglist_categories
+set household_id = coalesce(nullif(household_id, ''), 'tod-donna-shared')
+where household_id is null or household_id = '';
+
 update public.shoppinglist_note_items
 set household_id = coalesce(nullif(household_id, ''), 'tod-donna-shared')
 where household_id is null or household_id = '';
@@ -101,6 +124,10 @@ where household_id is null or household_id = '';
 update public.shoppinglist_items set store = 'shopping' where store = 'ours';
 update public.shoppinglist_rules set store = 'shopping' where store = 'ours';
 update public.shoppinglist_items set parent_target = 'schaffer' where parent_target = 'shafer';
+update public.shoppinglist_stores
+set route_categories = '[]'::jsonb
+where route_categories is null or jsonb_typeof(route_categories) <> 'array';
+
 update public.shoppinglist_note_items
 set lane = 'shared'
 where lane not in ('shared', 'donna', 'tod', 'trip-clothing', 'trip-tents', 'trip-fishing-gear', 'trip-boat-stuff', 'trip-cooking', 'trip-food', 'trip-toiletries', 'trip-bedding', 'trip-first-aid', 'trip-tools', 'trip-electronics', 'trip-paperwork', 'trip-dog-stuff', 'trip-misc')
@@ -152,6 +179,11 @@ create trigger shoppinglist_stores_updated_at
 before update on public.shoppinglist_stores
 for each row execute function public.shoppinglist_set_updated_at();
 
+drop trigger if exists shoppinglist_categories_updated_at on public.shoppinglist_categories;
+create trigger shoppinglist_categories_updated_at
+before update on public.shoppinglist_categories
+for each row execute function public.shoppinglist_set_updated_at();
+
 drop trigger if exists shoppinglist_note_items_updated_at on public.shoppinglist_note_items;
 create trigger shoppinglist_note_items_updated_at
 before update on public.shoppinglist_note_items
@@ -161,12 +193,14 @@ alter table public.shoppinglist_items enable row level security;
 alter table public.shoppinglist_rules enable row level security;
 alter table public.shoppinglist_notes enable row level security;
 alter table public.shoppinglist_stores enable row level security;
+alter table public.shoppinglist_categories enable row level security;
 alter table public.shoppinglist_note_items enable row level security;
 
 drop policy if exists "shoppinglist_items_shared_authenticated" on public.shoppinglist_items;
 drop policy if exists "shoppinglist_rules_shared_authenticated" on public.shoppinglist_rules;
 drop policy if exists "shoppinglist_notes_shared_authenticated" on public.shoppinglist_notes;
 drop policy if exists "shoppinglist_stores_shared_authenticated" on public.shoppinglist_stores;
+drop policy if exists "shoppinglist_categories_shared_authenticated" on public.shoppinglist_categories;
 drop policy if exists "shoppinglist_note_items_shared_authenticated" on public.shoppinglist_note_items;
 
 create policy "shoppinglist_items_shared_authenticated"
@@ -197,6 +231,13 @@ to authenticated
 using (true)
 with check (true);
 
+create policy "shoppinglist_categories_shared_authenticated"
+on public.shoppinglist_categories
+for all
+to authenticated
+using (true)
+with check (true);
+
 create policy "shoppinglist_note_items_shared_authenticated"
 on public.shoppinglist_note_items
 for all
@@ -213,22 +254,76 @@ on public.shoppinglist_notes (household_id);
 create unique index if not exists shoppinglist_stores_household_store_key_idx
 on public.shoppinglist_stores (household_id, store_key);
 
+create unique index if not exists shoppinglist_categories_household_name_idx
+on public.shoppinglist_categories (household_id, category_name);
+
 create index if not exists shoppinglist_items_household_created_idx
 on public.shoppinglist_items (household_id, created_at);
 
 create index if not exists shoppinglist_note_items_household_lane_idx
 on public.shoppinglist_note_items (household_id, lane, sort_order, created_at);
 
-insert into public.shoppinglist_stores (household_id, store_key, store_label, sort_order)
+insert into public.shoppinglist_categories (household_id, category_name, sort_order, is_builtin)
 values
-  ('tod-donna-shared', 'shopping', 'Shopping', 10),
-  ('tod-donna-shared', 'walmart', 'Walmart', 20),
-  ('tod-donna-shared', 'super-one-negaunee', 'Super One Negaunee', 30),
-  ('tod-donna-shared', 'menards', 'Menards', 40)
+  ('tod-donna-shared', 'Fruit', 10, true),
+  ('tod-donna-shared', 'Vegetables', 20, true),
+  ('tod-donna-shared', 'Frozen', 30, true),
+  ('tod-donna-shared', 'Condiments', 40, true),
+  ('tod-donna-shared', 'Gluten Free', 50, true),
+  ('tod-donna-shared', 'Canned', 60, true),
+  ('tod-donna-shared', 'Ethnic', 70, true),
+  ('tod-donna-shared', 'Dried', 80, true),
+  ('tod-donna-shared', 'Spices', 90, true),
+  ('tod-donna-shared', 'Baking supplies', 100, true),
+  ('tod-donna-shared', 'Snacks', 110, true),
+  ('tod-donna-shared', 'Baked goods', 120, true),
+  ('tod-donna-shared', 'Coffee/Tea', 130, true),
+  ('tod-donna-shared', 'Juice/Pop', 140, true),
+  ('tod-donna-shared', 'Dairy', 150, true),
+  ('tod-donna-shared', 'Eggs', 160, true),
+  ('tod-donna-shared', 'Cheese', 170, true),
+  ('tod-donna-shared', 'Meat', 180, true),
+  ('tod-donna-shared', 'Alcohol', 190, true),
+  ('tod-donna-shared', 'Paper Goods', 200, true),
+  ('tod-donna-shared', 'Cleaning Supplies', 210, true),
+  ('tod-donna-shared', 'Pet Supplies', 220, true),
+  ('tod-donna-shared', 'Clothes', 230, true),
+  ('tod-donna-shared', 'Sporting Goods', 240, true),
+  ('tod-donna-shared', 'Household', 250, true),
+  ('tod-donna-shared', 'Gardening', 260, true),
+  ('tod-donna-shared', 'Holiday', 270, true),
+  ('tod-donna-shared', 'Health and Beauty', 280, true),
+  ('tod-donna-shared', 'Candy', 290, true),
+  ('tod-donna-shared', 'Plumbing', 300, true),
+  ('tod-donna-shared', 'Flooring', 310, true),
+  ('tod-donna-shared', 'Paint', 320, true),
+  ('tod-donna-shared', 'Fasteners', 330, true),
+  ('tod-donna-shared', 'Tools', 340, true),
+  ('tod-donna-shared', 'Windows/Doors', 350, true),
+  ('tod-donna-shared', 'Lumber', 360, true),
+  ('tod-donna-shared', 'Shelving', 370, true),
+  ('tod-donna-shared', 'Auto', 380, true),
+  ('tod-donna-shared', 'Other', 390, true)
+on conflict (household_id, category_name)
+do update set
+  sort_order = excluded.sort_order,
+  is_builtin = shoppinglist_categories.is_builtin or excluded.is_builtin,
+  updated_at = now();
+
+insert into public.shoppinglist_stores (household_id, store_key, store_label, sort_order, route_categories)
+values
+  ('tod-donna-shared', 'shopping', 'Shopping', 10, '[]'::jsonb),
+  ('tod-donna-shared', 'walmart', 'Walmart', 20, '["Fruit","Vegetables","Frozen","Condiments","Gluten Free","Canned","Ethnic","Dried","Baking supplies","Snacks","Baked goods","Coffee/Tea","Juice/Pop","Dairy","Eggs","Cheese","Meat","Alcohol","Paper Goods","Cleaning Supplies","Pet Supplies","Clothes","Sporting Goods","Auto","Gardening","Household","Fasteners","Holiday","Health and Beauty","Candy"]'::jsonb),
+  ('tod-donna-shared', 'meiers', 'Meier''s', 30, '["Fruit","Vegetables","Meat","Baked goods","Condiments","Canned","Dried","Ethnic","Spices","Baking supplies","Coffee/Tea","Cheese","Frozen","Dairy","Eggs","Cleaning Supplies","Snacks","Paper Goods","Candy","Juice/Pop","Alcohol","Clothes","Health and Beauty","Gardening","Pet Supplies"]'::jsonb),
+  ('tod-donna-shared', 'super-one-negaunee', 'Super One Negaunee', 40, '["Fruit","Vegetables","Condiments","Meat","Canned","Gluten Free","Ethnic","Baking supplies","Coffee/Tea","Paper Goods","Snacks","Dairy","Eggs","Frozen","Alcohol"]'::jsonb),
+  ('tod-donna-shared', 'menards', 'Menards', 50, '["Gardening","Plumbing","Flooring","Paint","Pet Supplies","Fasteners","Tools","Windows/Doors","Lumber","Shelving","Auto"]'::jsonb),
+  ('tod-donna-shared', 'super-one-marquette', 'Super One Marquette', 60, '[]'::jsonb),
+  ('tod-donna-shared', 'mqt-food-co-op', 'Mqt. Food Co-Op', 70, '[]'::jsonb)
 on conflict (household_id, store_key)
 do update set
   store_label = excluded.store_label,
   sort_order = excluded.sort_order,
+  route_categories = excluded.route_categories,
   updated_at = now();
 
 -- migrate older shopping_* data into the isolated shoppinglist_* tables if present
