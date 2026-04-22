@@ -6,7 +6,11 @@
   <title>Shared Shopping List</title>
   <meta name="theme-color" content="#113a5d" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.v1.4.0.css" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Shopping List" />
+  <link rel="stylesheet" href="styles.v1.6.0.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -19,7 +23,8 @@
           <h1>Shared Shopping List</h1>
           <div class="subline">
             <span id="modeBadge" class="mode-badge">Starting…</span>
-            <span class="version-flag">v1.4.0</span>
+            <span id="syncBadge" class="sync-badge sync-starting">Starting…</span>
+            <span class="version-flag">v1.6.0</span>
           </div>
         </div>
       </div>
@@ -86,6 +91,6 @@
     </form>
   </dialog>
 
-  <script src="app.v1.4.0.js"></script>
+  <script src="app.v1.6.0.js"></script>
 </body>
 </html>
