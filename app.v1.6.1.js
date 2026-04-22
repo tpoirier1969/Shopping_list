@@ -1,7 +1,7 @@
 (function () {
   const APP_CONFIG = window.APP_CONFIG || {};
   const SHARED_SCOPE_ID = 'tod-donna-shared';
-  const VERSION = 'v1.6.1';
+  const VERSION = 'v1.6.1b';
 
   const CATEGORY_ORDER = [
     'Fruit',
@@ -12,8 +12,10 @@
     'Canned',
     'Ethnic',
     'Dried',
-    'Baking',
+    'Spices',
+    'Baking supplies',
     'Snacks',
+    'Baked goods',
     'Coffee/Tea',
     'Juice/Pop',
     'Dairy',
@@ -46,8 +48,11 @@
   const BUILTIN_STORES = [
     { store_key: 'shopping', store_label: 'Shopping', sort_order: 10, is_builtin: true },
     { store_key: 'walmart', store_label: 'Walmart', sort_order: 20, is_builtin: true },
-    { store_key: 'super-one-negaunee', store_label: 'Super One Negaunee', sort_order: 30, is_builtin: true },
-    { store_key: 'menards', store_label: 'Menards', sort_order: 40, is_builtin: true },
+    { store_key: 'meiers', store_label: "Meier's", sort_order: 30, is_builtin: true },
+    { store_key: 'super-one-negaunee', store_label: 'Super One Negaunee', sort_order: 40, is_builtin: true },
+    { store_key: 'menards', store_label: 'Menards', sort_order: 50, is_builtin: true },
+    { store_key: 'super-one-marquette', store_label: 'Super One Marquette', sort_order: 60, is_builtin: true },
+    { store_key: 'mqt-food-co-op', store_label: 'Mqt. Food Co-Op', sort_order: 70, is_builtin: true },
   ];
 
   const STORE_FILTERS = [
@@ -60,26 +65,42 @@
       key: 'walmart',
       label: 'Walmart',
       categories: [
-        'Fruit', 'Vegetables', 'Frozen', 'Condiments', 'Gluten Free', 'Canned', 'Ethnic', 'Dried',
-        'Baking', 'Snacks', 'Coffee/Tea', 'Juice/Pop', 'Dairy', 'Eggs', 'Cheese', 'Meat', 'Alcohol',
-        'Paper Goods', 'Cleaning Supplies', 'Pet Supplies', 'Clothes', 'Sporting Goods', 'Household',
-        'Gardening', 'Holiday', 'Health and Beauty', 'Candy',
+        'Fruit', 'Vegetables', 'Frozen', 'Condiments', 'Gluten Free', 'Canned', 'Ethnic', 'Dried', 'Baking supplies', 'Snacks', 'Baked goods', 'Coffee/Tea', 'Juice/Pop', 'Dairy', 'Eggs', 'Cheese', 'Meat', 'Alcohol', 'Paper Goods', 'Cleaning Supplies', 'Pet Supplies', 'Clothes', 'Sporting Goods', 'Auto', 'Gardening', 'Household', 'Fasteners', 'Holiday', 'Health and Beauty', 'Candy'
+      ],
+    },
+    {
+      key: 'meiers',
+      label: "Meier's",
+      categories: [
+        'Fruit', 'Vegetables', 'Meat', 'Baked goods', 'Condiments', 'Canned', 'Dried', 'Ethnic', 'Spices', 'Baking supplies', 'Coffee/Tea', 'Cheese', 'Frozen', 'Dairy', 'Eggs', 'Cleaning Supplies', 'Snacks', 'Paper Goods', 'Candy', 'Juice/Pop', 'Alcohol', 'Clothes', 'Health and Beauty', 'Gardening', 'Pet Supplies'
       ],
     },
     {
       key: 'super-one-negaunee',
       label: 'Super One Negaunee',
       categories: [
-        'Fruit', 'Vegetables', 'Condiments', 'Meat', 'Canned', 'Gluten Free', 'Ethnic',
-        'Baking', 'Coffee/Tea', 'Paper Goods', 'Snacks', 'Dairy', 'Eggs', 'Frozen', 'Alcohol',
+        'Fruit', 'Vegetables', 'Condiments', 'Meat', 'Canned', 'Gluten Free', 'Ethnic', 'Baking supplies', 'Coffee/Tea', 'Paper Goods', 'Snacks', 'Dairy', 'Eggs', 'Frozen', 'Alcohol'
       ],
     },
     {
       key: 'menards',
       label: 'Menards',
       categories: [
-        'Gardening', 'Plumbing', 'Flooring', 'Paint', 'Pet Supplies', 'Fasteners',
-        'Tools', 'Windows/Doors', 'Lumber', 'Shelving', 'Auto',
+        'Gardening', 'Plumbing', 'Flooring', 'Paint', 'Pet Supplies', 'Fasteners', 'Tools', 'Windows/Doors', 'Lumber', 'Shelving', 'Auto'
+      ],
+    },
+    {
+      key: 'super-one-marquette',
+      label: 'Super One Marquette',
+      categories: [
+        
+      ],
+    },
+    {
+      key: 'mqt-food-co-op',
+      label: 'Mqt. Food Co-Op',
+      categories: [
+        
       ],
     },
   ];
@@ -125,8 +146,11 @@
     { category: 'Gluten Free', keywords: ['gluten free', 'gf bread', 'gf pasta', 'gf crackers', 'gf flour'] },
     { category: 'Canned', keywords: ['canned', 'can of', 'soup', 'broth', 'beans', 'corn', 'peas', 'tuna', 'tomato sauce', 'diced tomatoes', 'crushed tomatoes', 'whole tomatoes', 'spam', 'canned pineapple', 'canned peaches', 'canned pears', 'mandarin oranges', 'fruit cup', 'fruit cocktail', 'olives'] },
     { category: 'Ethnic', keywords: ['tortilla', 'tortillas', 'salsa verde', 'enchilada', 'taco', 'tacos', 'ramen', 'curry paste', 'coconut milk', 'nori', 'soy sauce', 'fish sauce', 'tikka', 'naan'] },
-    { category: 'Dried', keywords: ['flour', 'sugar', 'salt', 'pepper', 'spice', 'seasoning', 'pasta', 'rice', 'oats', 'oatmeal', 'cereal', 'lentils', 'breadcrumbs', 'cracker crumbs', 'macaroni', 'beans dry', 'dried beans', 'noodles'] },
-    { category: 'Baking', keywords: ['yeast', 'baking powder', 'baking soda', 'brown sugar', 'powdered sugar', 'cocoa', 'chocolate chips', 'vanilla', 'cake mix', 'frosting'] },
+    { category: 'Spices', keywords: ['spice', 'spices', 'seasoning', 'seasonings', 'black pepper', 'peppercorn', 'peppercorns', 'cinnamon', 'paprika', 'cumin', 'oregano', 'basil', 'thyme', 'rosemary', 'garlic powder', 'onion powder', 'chili powder'] },
+    { category: 'Dried', keywords: ['flour', 'sugar', 'salt', 'pasta', 'rice', 'oats', 'oatmeal', 'cereal', 'lentils', 'breadcrumbs', 'cracker crumbs', 'macaroni', 'beans dry', 'dried beans', 'noodles'] },
+    { category: 'Baking supplies', keywords: ['yeast', 'baking powder', 'baking soda', 'brown sugar', 'powdered sugar', 'cocoa', 'chocolate chips', 'vanilla', 'cake mix', 'frosting'] },
+    { category: 'Baked goods', keywords: ['bread', 'breads', 'loaf', 'loaves', 'roll', 'rolls', 'bun', 'buns', 'bagel', 'bagels', 'muffin', 'muffins', 'donut', 'donuts', 'pastry', 'pastries', 'croissant', 'croissants', 'english muffin', 'english muffins'] },
+    
     { category: 'Snacks', keywords: ['chips', 'pretzels', 'popcorn', 'cookies', 'cracker', 'crackers', 'nuts', 'trail mix', 'granola bar', 'granola bars'] },
     { category: 'Coffee/Tea', keywords: ['coffee', 'tea', 'creamer', 'k-cup', 'k cups'] },
     { category: 'Juice/Pop', keywords: ['juice', 'soda', 'sparkling water', 'water', 'cider', 'gatorade', 'pop', 'cola', 'root beer', 'ginger ale'] },
@@ -503,7 +527,7 @@ stopRealtime() {
     const filterDef = getStoreFilterDef(filterKey);
     const items = getShoppingItems();
     if (!filterDef || filterDef.key === 'master') return items;
-    return items.filter((item) => filterDef.categories.includes(getEffectiveCategory(item)));
+    return items.filter((item) => filterDef.categories.includes(item.category));
   }
 
   function setModeBadge(text) {
@@ -790,9 +814,10 @@ function bindConnectivityRefresh() {
       case 'Deli': return 'Meat';
       case 'Vegan': return 'Gluten Free';
       case 'Dry Goods': return 'Dried';
-      case 'Bakery': return 'Baking';
+      case 'Bakery': return 'Baked goods';
       case 'Beverages': return 'Juice/Pop';
       case 'Dairy / Eggs': return 'Dairy';
+      case 'Baking': return 'Baking supplies';
       case 'Cleaning': return 'Cleaning Supplies';
       case 'Paper Products': return 'Paper Goods';
       case 'Medicine': return 'Health and Beauty';
