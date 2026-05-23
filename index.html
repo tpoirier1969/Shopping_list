@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Shopping List" />
-  <link rel="stylesheet" href="styles.v1.7.1.css" />
+  <link rel="stylesheet" href="styles.v1.8.0.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
@@ -25,7 +25,7 @@
           <div class="subline">
             <span id="modeBadge" class="mode-badge">Starting…</span>
             <span id="syncBadge" class="sync-badge sync-starting">Starting…</span>
-            <span class="version-flag">v1.7.1</span>
+            <span class="version-flag">v1.8.0</span>
           </div>
         </div>
       </div>
@@ -59,10 +59,14 @@
           <label><input type="checkbox" id="parentSchaffer" /> Shafer</label>
         </div>
 
-        <label id="categoryPickerWrap" class="full-row hidden">
+        <label id="categoryPickerWrap" class="full-row">
           <span>Category</span>
           <select id="categoryPicker"></select>
-          <small class="helper">Unknown item. Pick a category and it will be remembered next time.</small>
+        </label>
+
+        <label id="categoryRememberWrap" class="full-row category-remember hidden">
+          <input type="checkbox" id="categoryRememberCheckbox" checked />
+          <span>Use this category for this item from now on</span>
         </label>
       </div>
 
@@ -92,6 +96,6 @@
     </form>
   </dialog>
 
-  <script src="app.v1.7.1.js"></script>
+  <script src="app.v1.8.0.js"></script>
 </body>
 </html>

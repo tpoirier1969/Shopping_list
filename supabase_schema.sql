@@ -1,4 +1,4 @@
--- Shared Shopping List schema v1.7.1
+-- Shared Shopping List schema v1.8.0
 -- Airtight isolation revision.
 -- This app now lives in its own dedicated schema: tod_donna_shared_shopping
 -- IMPORTANT AFTER RUNNING THIS SQL:
@@ -75,6 +75,16 @@ create table if not exists tod_donna_shared_shopping.categories (
   unique (household_id, category_name)
 );
 
+create table if not exists tod_donna_shared_shopping.category_memory (
+  id uuid primary key default gen_random_uuid(),
+  household_id text not null default 'tod-donna-shared',
+  item_key text not null,
+  category text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (household_id, item_key)
+);
+
 create table if not exists tod_donna_shared_shopping.note_items (
   id uuid primary key default gen_random_uuid(),
   household_id text not null default 'tod-donna-shared',
@@ -91,6 +101,7 @@ create index if not exists items_household_active_idx on tod_donna_shared_shoppi
 create index if not exists rules_household_idx on tod_donna_shared_shopping.rules (household_id);
 create index if not exists stores_household_sort_idx on tod_donna_shared_shopping.stores (household_id, sort_order, created_at);
 create index if not exists categories_household_sort_idx on tod_donna_shared_shopping.categories (household_id, sort_order, category_name);
+create index if not exists category_memory_household_item_idx on tod_donna_shared_shopping.category_memory (household_id, item_key);
 create index if not exists note_items_household_lane_sort_idx on tod_donna_shared_shopping.note_items (household_id, lane, sort_order, created_at);
 
 alter table tod_donna_shared_shopping.items drop constraint if exists items_parent_target_check;
@@ -134,6 +145,9 @@ create trigger stores_updated_at before update on tod_donna_shared_shopping.stor
 drop trigger if exists categories_updated_at on tod_donna_shared_shopping.categories;
 create trigger categories_updated_at before update on tod_donna_shared_shopping.categories for each row execute function tod_donna_shared_shopping.set_updated_at();
 
+drop trigger if exists category_memory_updated_at on tod_donna_shared_shopping.category_memory;
+create trigger category_memory_updated_at before update on tod_donna_shared_shopping.category_memory for each row execute function tod_donna_shared_shopping.set_updated_at();
+
 drop trigger if exists note_items_updated_at on tod_donna_shared_shopping.note_items;
 create trigger note_items_updated_at before update on tod_donna_shared_shopping.note_items for each row execute function tod_donna_shared_shopping.set_updated_at();
 
@@ -142,6 +156,7 @@ alter table tod_donna_shared_shopping.rules enable row level security;
 alter table tod_donna_shared_shopping.notes enable row level security;
 alter table tod_donna_shared_shopping.stores enable row level security;
 alter table tod_donna_shared_shopping.categories enable row level security;
+alter table tod_donna_shared_shopping.category_memory enable row level security;
 alter table tod_donna_shared_shopping.note_items enable row level security;
 
 drop policy if exists items_household_policy on tod_donna_shared_shopping.items;
@@ -149,6 +164,7 @@ drop policy if exists rules_household_policy on tod_donna_shared_shopping.rules;
 drop policy if exists notes_household_policy on tod_donna_shared_shopping.notes;
 drop policy if exists stores_household_policy on tod_donna_shared_shopping.stores;
 drop policy if exists categories_household_policy on tod_donna_shared_shopping.categories;
+drop policy if exists category_memory_household_policy on tod_donna_shared_shopping.category_memory;
 drop policy if exists note_items_household_policy on tod_donna_shared_shopping.note_items;
 
 create policy items_household_policy on tod_donna_shared_shopping.items
@@ -172,6 +188,11 @@ create policy stores_household_policy on tod_donna_shared_shopping.stores
   with check (household_id = 'tod-donna-shared');
 
 create policy categories_household_policy on tod_donna_shared_shopping.categories
+  for all to authenticated
+  using (household_id = 'tod-donna-shared')
+  with check (household_id = 'tod-donna-shared');
+
+create policy category_memory_household_policy on tod_donna_shared_shopping.category_memory
   for all to authenticated
   using (household_id = 'tod-donna-shared')
   with check (household_id = 'tod-donna-shared');
@@ -227,6 +248,21 @@ BEGIN
   END IF;
 END $$;
 
+INSERT INTO tod_donna_shared_shopping.category_memory (household_id, item_key, category, created_at, updated_at)
+SELECT
+  coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+  item_key,
+  category,
+  now(),
+  coalesce(updated_at, now())
+FROM tod_donna_shared_shopping.rules
+WHERE item_key is not null
+  AND btrim(item_key) <> ''
+  AND category is not null
+  AND btrim(category) <> ''
+  AND coalesce(store, 'shopping') in ('shopping', 'master', 'ours')
+ON CONFLICT (household_id, item_key) DO NOTHING;
+
 DO $$
 BEGIN
   IF to_regclass('public.shoppinglist_notes') IS NOT NULL THEN
@@ -258,24 +294,51 @@ BEGIN
 END $$;
 
 DO $$
+DECLARE
+  has_route_categories boolean := false;
 BEGIN
   IF to_regclass('public.shoppinglist_stores') IS NOT NULL THEN
-    INSERT INTO tod_donna_shared_shopping.stores (id, household_id, store_key, store_label, sort_order, route_categories, created_at, updated_at)
-    SELECT
-      id,
-      coalesce(nullif(household_id, ''), 'tod-donna-shared'),
-      store_key,
-      case when store_key = 'shopping' and store_label = 'Groceries' then 'Shopping' else store_label end,
-      coalesce(sort_order, 100),
-      case
-        when route_categories is null or jsonb_typeof(route_categories) <> 'array' then '[]'::jsonb
-        else route_categories
-      end,
-      coalesce(created_at, now()),
-      coalesce(updated_at, now())
-    FROM public.shoppinglist_stores
-    WHERE store_key is not null
-    ON CONFLICT (household_id, store_key) DO NOTHING;
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'shoppinglist_stores'
+        AND column_name = 'route_categories'
+    )
+    INTO has_route_categories;
+
+    IF has_route_categories THEN
+      INSERT INTO tod_donna_shared_shopping.stores (id, household_id, store_key, store_label, sort_order, route_categories, created_at, updated_at)
+      SELECT
+        id,
+        coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+        store_key,
+        case when store_key = 'shopping' and store_label = 'Groceries' then 'Shopping' else store_label end,
+        coalesce(sort_order, 100),
+        case
+          when route_categories is null or jsonb_typeof(route_categories) <> 'array' then '[]'::jsonb
+          else route_categories
+        end,
+        coalesce(created_at, now()),
+        coalesce(updated_at, now())
+      FROM public.shoppinglist_stores
+      WHERE store_key is not null
+      ON CONFLICT (household_id, store_key) DO NOTHING;
+    ELSE
+      INSERT INTO tod_donna_shared_shopping.stores (id, household_id, store_key, store_label, sort_order, route_categories, created_at, updated_at)
+      SELECT
+        id,
+        coalesce(nullif(household_id, ''), 'tod-donna-shared'),
+        store_key,
+        case when store_key = 'shopping' and store_label = 'Groceries' then 'Shopping' else store_label end,
+        coalesce(sort_order, 100),
+        '[]'::jsonb,
+        coalesce(created_at, now()),
+        coalesce(updated_at, now())
+      FROM public.shoppinglist_stores
+      WHERE store_key is not null
+      ON CONFLICT (household_id, store_key) DO NOTHING;
+    END IF;
   END IF;
 END $$;
 
