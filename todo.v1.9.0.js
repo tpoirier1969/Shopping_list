@@ -1,6 +1,10 @@
 /* Shared Shopping List v1.9.0
- * To Do module backed by Poirier's Planner's existing public.tod_donna_calendar_tasks table.
- * No duplicate task table is created here.
+ * To Do module backed by Poirier's Planner's existing
+ * public.tod_donna_calendar_tasks table.
+ *
+ * Launch mode: no additional user sign-in is required.
+ * Frank is not an assignee in this UI. Any legacy/future Frank-assigned
+ * task is surfaced as Shared so no task disappears from the household view.
  */
 (function () {
   'use strict';
@@ -63,13 +67,22 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
+  function normalizePersonKey(value) {
+    if (value === 'tod' || value === 'donna' || value === 'shared') return value;
+    if (value === 'frank') return 'shared';
+    return 'shared';
+  }
+
   function normalizeTask(row) {
     return {
       id: row?.id || makeId(),
       title: String(row?.title || '').trim(),
       notes: String(row?.notes || ''),
-      person_key: ['tod', 'donna', 'shared'].includes(row?.person_key) ? row.person_key : 'shared',
-      task_mode: ['timeless', 'from_date', 'specific_date'].includes(row?.task_mode) ? row.task_mode : 'timeless',
+      person_key: normalizePersonKey(row?.person_key),
+      source_person_key: row?.person_key || 'shared',
+      task_mode: ['timeless', 'from_date', 'specific_date'].includes(row?.task_mode)
+        ? row.task_mode
+        : 'timeless',
       assigned_date: row?.assigned_date || null,
       priority: row?.priority === 'important' ? 'important' : 'normal',
       completed: Boolean(row?.completed),
@@ -120,9 +133,9 @@
     return `
       <div class="todo-row ${task.priority === 'important' ? 'important' : ''}">
         <label class="check-wrap todo-check">
-          <input type="checkbox" data-todo-action="complete" data-id="${esc(task.id)}" aria-label="Complete ${esc(task.title)}" />
+          <input type="checkbox" data-todo-complete="${esc(task.id)}" aria-label="Complete ${esc(task.title)}" />
         </label>
-        <button type="button" class="todo-main" data-todo-action="edit" data-id="${esc(task.id)}">
+        <button type="button" class="todo-main" data-todo-edit="${esc(task.id)}">
           <span class="todo-title">${task.priority === 'important' ? '<span class="todo-important-mark">!</span>' : ''}${esc(task.title)}</span>
           <span class="todo-meta">
             <span class="badge">${esc(personLabel(task.person_key))}</span>
@@ -149,8 +162,8 @@
     const count = current.length;
 
     els.todoTabFlag?.classList.toggle('hidden', count === 0);
-
     if (!els.todoGrid) return;
+
     const body = errorMessage
       ? `<div class="empty-state todo-error">${esc(errorMessage)}</div>`
       : state.loading && !state.tasks.length
@@ -172,7 +185,7 @@
                   <option value="donna" ${state.viewer === 'donna' ? 'selected' : ''}>Donna + Shared</option>
                 </select>
               </label>
-              <button type="button" class="control-btn primary" data-todo-action="add">Add task</button>
+              <button type="button" class="control-btn primary" id="todoAddTaskBtn">Add task</button>
             </div>
           </div>
         </div>
@@ -187,6 +200,7 @@
     els.todoTabBtn?.classList.toggle('active', state.active);
     els.todoGrid?.classList.toggle('hidden', !state.active);
     els.mainGrid?.classList.toggle('hidden', state.active);
+
     if (state.active) {
       els.tabBar?.querySelectorAll('.tab').forEach((tab) => tab.classList.remove('active'));
       els.floatingAddBtn?.classList.add('hidden');
@@ -229,6 +243,7 @@
     if (!state.client || state.loading) return;
     state.loading = true;
     if (!silent && state.active) render();
+
     try {
       const { data, error } = await state.client
         .from(TASK_TABLE)
@@ -261,8 +276,14 @@
       completed_at: row.completed_at,
       sort_order: row.sort_order,
     };
-    const { data, error } = await state.client.from(TASK_TABLE).upsert(payload).select().single();
+
+    const { data, error } = await state.client
+      .from(TASK_TABLE)
+      .upsert(payload)
+      .select()
+      .single();
     if (error) throw error;
+
     const saved = normalizeTask(data);
     const index = state.tasks.findIndex((entry) => entry.id === saved.id);
     if (index >= 0) state.tasks[index] = saved;
@@ -277,6 +298,7 @@
       els.taskTitleInput.focus();
       return;
     }
+
     const existing = state.tasks.find((task) => task.id === els.taskIdInput.value) || null;
     const mode = els.taskWhenInput.value || 'timeless';
     const assignedDate = mode === 'timeless' ? null : els.taskDateInput.value;
@@ -284,6 +306,7 @@
       els.taskDateInput.focus();
       return;
     }
+
     try {
       await saveTask({
         ...(existing || {}),
@@ -308,8 +331,14 @@
   async function completeTask(id) {
     const task = state.tasks.find((entry) => entry.id === id);
     if (!task) return;
+
     try {
-      await saveTask({ ...task, completed: true, completed_at: new Date().toISOString() });
+      await saveTask({
+        ...task,
+        completed: true,
+        completed_at: new Date().toISOString(),
+      });
+      state.tasks = state.tasks.filter((entry) => entry.id !== id);
       render();
     } catch (error) {
       alert(`Task was not completed.\n\n${error?.message || error}`);
@@ -322,6 +351,7 @@
     const task = state.tasks.find((entry) => entry.id === id);
     if (!task) return;
     if (!window.confirm(`Delete “${task.title}”?`)) return;
+
     try {
       const { error } = await state.client.from(TASK_TABLE).delete().eq('id', id);
       if (error) throw error;
@@ -340,18 +370,18 @@
       render();
     });
 
-    els.todoGrid?.querySelectorAll('[data-todo-action]').forEach((element) => {
+    document.getElementById('todoAddTaskBtn')?.addEventListener('click', () => openTask());
+
+    els.todoGrid?.querySelectorAll('[data-todo-edit]').forEach((element) => {
       element.addEventListener('click', (event) => {
-        const action = event.currentTarget.dataset.todoAction;
-        const id = event.currentTarget.dataset.id;
-        if (action === 'add') openTask();
-        if (action === 'edit') openTask(state.tasks.find((task) => task.id === id) || null);
+        const id = event.currentTarget.dataset.todoEdit;
+        openTask(state.tasks.find((task) => task.id === id) || null);
       });
     });
 
-    els.todoGrid?.querySelectorAll('input[data-todo-action="complete"]').forEach((input) => {
+    els.todoGrid?.querySelectorAll('[data-todo-complete]').forEach((input) => {
       input.addEventListener('change', (event) => {
-        if (event.currentTarget.checked) completeTask(event.currentTarget.dataset.id);
+        if (event.currentTarget.checked) completeTask(event.currentTarget.dataset.todoComplete);
       });
     });
   }
@@ -380,6 +410,9 @@
 
   function initClient() {
     if (!APP_CONFIG.supabaseUrl || !APP_CONFIG.supabaseAnonKey || !window.supabase) return false;
+
+    // This client intentionally uses Supabase's default public schema.
+    // Shopping-list data continues to use tod_donna_shared_shopping in app.v1.8.1.js.
     state.client = window.supabase.createClient(APP_CONFIG.supabaseUrl, APP_CONFIG.supabaseAnonKey, {
       auth: {
         persistSession: false,
@@ -417,6 +450,7 @@
       render('Tasks could not connect to Supabase.');
       return;
     }
+
     loadTasks(true);
   }
 
