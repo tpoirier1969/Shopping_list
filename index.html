@@ -10,7 +10,8 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Shopping List" />
-  <link rel="stylesheet" href="styles.v1.8.1.css?v=1.8.2" />
+  <link rel="stylesheet" href="styles.v1.8.1.css?v=1.9.0" />
+  <link rel="stylesheet" href="todo.v1.9.0.css?v=1.9.0" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
@@ -25,7 +26,7 @@
           <div class="subline">
             <span id="modeBadge" class="mode-badge">Starting…</span>
             <span id="syncBadge" class="sync-badge sync-starting">Starting…</span>
-            <span id="versionFlag" class="badge">v1.8.2</span>
+            <span id="versionFlag" class="badge">v1.9.0</span>
           </div>
         </div>
       </div>
@@ -33,9 +34,13 @@
 
     <div id="statusBar" class="status-bar"></div>
 
-    <nav class="tabbar" id="tabBar"></nav>
+    <div class="combined-tabbar" id="combinedTabBar">
+      <nav class="tabbar core-tabbar" id="tabBar"></nav>
+      <button class="tab todo-static-tab" id="todoTabBtn" type="button">To Do <span id="todoTabFlag" class="tab-flag-dot hidden" aria-hidden="true"></span></button>
+    </div>
 
     <main class="main-grid" id="mainGrid"></main>
+    <main class="main-grid hidden" id="todoGrid"></main>
   </div>
 
   <button id="floatingAddBtn" class="floating-add" aria-label="Add item">＋</button>
@@ -77,6 +82,56 @@
     </form>
   </dialog>
 
+  <dialog id="taskModal" class="modal-card">
+    <form method="dialog" id="taskForm">
+      <div class="modal-head">
+        <h2 id="taskModalTitle">Add Task</h2>
+        <button type="button" id="closeTaskModalBtn" class="icon-btn">✕</button>
+      </div>
+      <input id="taskIdInput" type="hidden" />
+      <div class="modal-grid compact-grid">
+        <label class="full-row">
+          <span>Task</span>
+          <input id="taskTitleInput" type="text" maxlength="240" autocomplete="off" required />
+        </label>
+        <label>
+          <span>For</span>
+          <select id="taskPersonInput">
+            <option value="shared">Shared</option>
+            <option value="tod">Tod</option>
+            <option value="donna">Donna</option>
+          </select>
+        </label>
+        <label>
+          <span>When</span>
+          <select id="taskWhenInput">
+            <option value="timeless">Any day</option>
+            <option value="from_date">Start on date</option>
+            <option value="specific_date">Specific date</option>
+          </select>
+        </label>
+        <label id="taskDateWrap" class="full-row hidden">
+          <span>Date</span>
+          <input id="taskDateInput" type="date" />
+        </label>
+        <label class="full-row task-important-check">
+          <input id="taskImportantInput" type="checkbox" />
+          <span>Important</span>
+        </label>
+        <label class="full-row">
+          <span>Notes</span>
+          <textarea id="taskNotesInput" rows="3" maxlength="1000"></textarea>
+        </label>
+      </div>
+      <div class="modal-actions task-modal-actions">
+        <button type="button" id="deleteTaskBtn" class="remove-btn hidden">Delete</button>
+        <span class="task-modal-spacer"></span>
+        <button type="button" id="cancelTaskModalBtn" class="secondary-btn">Cancel</button>
+        <button type="submit" class="primary-btn">Save Task</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="storeModal" class="modal-card small-modal">
     <form method="dialog" id="storeForm">
       <div class="modal-head">
@@ -96,6 +151,7 @@
     </form>
   </dialog>
 
-  <script src="app.v1.8.1.js?v=1.8.2"></script>
+  <script src="app.v1.8.1.js?v=1.9.0"></script>
+  <script src="todo.v1.9.0.js?v=1.9.0"></script>
 </body>
 </html>
