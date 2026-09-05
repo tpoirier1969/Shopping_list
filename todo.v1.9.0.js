@@ -1,4 +1,4 @@
-/* Shared Shopping List v1.9.0
+/* Shared Shopping List v1.9.1
  * To Do module backed by Poirier's Planner's existing
  * public.tod_donna_calendar_tasks table.
  *
@@ -52,7 +52,7 @@
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
+      .replace(/\"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
 
@@ -197,6 +197,7 @@
 
   function setActive(active) {
     state.active = Boolean(active);
+    document.body.classList.toggle('todo-mode', state.active);
     els.todoTabBtn?.classList.toggle('active', state.active);
     els.todoGrid?.classList.toggle('hidden', !state.active);
     els.mainGrid?.classList.toggle('hidden', state.active);
@@ -411,8 +412,6 @@
   function initClient() {
     if (!APP_CONFIG.supabaseUrl || !APP_CONFIG.supabaseAnonKey || !window.supabase) return false;
 
-    // This client intentionally uses Supabase's default public schema.
-    // Shopping-list data continues to use tod_donna_shared_shopping in app.v1.8.1.js.
     state.client = window.supabase.createClient(APP_CONFIG.supabaseUrl, APP_CONFIG.supabaseAnonKey, {
       auth: {
         persistSession: false,
@@ -439,12 +438,6 @@
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && state.active) loadTasks(true);
     });
-
-    if (els.floatingAddBtn) {
-      new MutationObserver(() => {
-        if (state.active) els.floatingAddBtn.classList.add('hidden');
-      }).observe(els.floatingAddBtn, { attributes: true, attributeFilter: ['class'] });
-    }
 
     if (!initClient()) {
       render('Tasks could not connect to Supabase.');
